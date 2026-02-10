@@ -3,10 +3,10 @@ import '../../domain/entities/dashboard_entities.dart';
 import '../../domain/usecases/dashboard_usecases.dart';
 import '../../data/datasources/dashboard_local_data_source.dart';
 import '../../data/repositories/dashboard_repository_impl.dart';
-import '../../../../core/database/database.dart';
+import '../../../prestamos/domain/entities/cuota.dart';
+import '../../../prestamos/domain/entities/prestamo.dart';
+import '../../../../core/database/database_provider.dart';
 
-// Provider de database (compartido)
-final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
 // Provider del data source
 final dashboardLocalDataSourceProvider = Provider<DashboardLocalDataSource>((ref) {
@@ -68,14 +68,30 @@ final dashboardAlertasProvider = FutureProvider.autoDispose<List<DashboardAlerta
 });
 
 // Provider para próximos vencimientos
-final proximosVencimientosProvider = FutureProvider.autoDispose.family<List<ProximoVencimiento>, int>(
+final proximosVencimientosProvider = FutureProvider.autoDispose.family<List<Cuota>, int>(
   (ref, dias) async {
     final useCase = ref.watch(getProximosVencimientosUseCaseProvider);
     final result = await useCase(dias: dias);
     
     return result.fold(
       (failure) => throw Exception(failure.message),
-      (vencimientos) => vencimientos,
+      (vencimientos) {
+        // Convertir ProximoVencimiento a Cuota
+        return vencimientos.map((v) => Cuota(
+          id: v.cuotaId,
+          prestamoId: v.prestamoId,
+          numeroCuota: v.numeroCuota,
+          fechaVencimiento: v.fechaVencimiento,
+          montoCuota: v.montoCuota,
+          capital: 0,
+          interes: v.montoInteres,
+          saldoPendiente: v.montoPendiente,
+          montoPagado: v.montoCuota - v.montoPendiente,
+          montoMora: 0,
+          estado: EstadoCuota.pendiente,
+          fechaRegistro: DateTime.now(),
+        )).toList();
+      },
     );
   },
 );

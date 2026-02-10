@@ -186,11 +186,11 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
               controller: _montoController,
               label: 'Monto a Transferir',
               keyboardType: TextInputType.number,
-              prefixIcon: Icons.attach_money,
+              prefixIcon: const Icon(Icons.attach_money),
               onChanged: (_) => setState(() {}),
-              validator: Validators.combine([
-                Validators.required('El monto es requerido'),
-                Validators.amount(),
+              validator: (value) => Validators.combine([
+                (v) => Validators.required(v, fieldName: 'El monto'),
+                (v) => Validators.amount(v),
                 (value) {
                   if (_cajaOrigenSeleccionada == null) return null;
                   
@@ -208,7 +208,7 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
                   
                   return null;
                 },
-              ]),
+              ])(value),
             ),
             
             const SizedBox(height: 16),
@@ -218,8 +218,8 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
               controller: _descripcionController,
               label: 'Descripción / Concepto',
               maxLines: 3,
-              prefixIcon: Icons.description,
-              validator: Validators.required('La descripción es requerida'),
+              prefixIcon: const Icon(Icons.description),
+              validator: (value) => Validators.required(value, fieldName: 'La descripción'),
             ),
             
             const SizedBox(height: 16),
@@ -251,7 +251,7 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
             CustomTextField(
               controller: _referenciaController,
               label: 'Referencia (opcional)',
-              prefixIcon: Icons.confirmation_number,
+              prefixIcon: const Icon(Icons.confirmation_number),
             ),
             
             const SizedBox(height: 32),
@@ -297,6 +297,7 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
     );
   }
 
+  // ✅ CORREGIDO: Usar Row en lugar de Column para evitar overflow
   Widget _buildCajaOrigenSelector(List<Caja> cajas) {
     return DropdownButtonFormField<int>(
       value: _cajaOrigenSeleccionada,
@@ -310,15 +311,22 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
       items: cajas.map((caja) {
         return DropdownMenuItem(
           value: caja.id,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(caja.nombre),
+              Flexible(
+                child: Text(
+                  caja.nombre,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
-                'Saldo: ${Formatters.formatCurrency(caja.saldo)}',
+                Formatters.formatCurrency(caja.saldo),
                 style: TextStyle(
                   fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: caja.saldo > 0 ? Colors.green : Colors.red,
                 ),
               ),
@@ -346,6 +354,7 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
     );
   }
 
+  // ✅ CORREGIDO: Usar Row en lugar de Column para evitar overflow
   Widget _buildCajaDestinoSelector(List<Caja> cajas) {
     // Filtrar para no mostrar la caja origen
     final cajasDisponibles = cajas.where((c) => c.id != _cajaOrigenSeleccionada).toList();
@@ -362,15 +371,22 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
       items: cajasDisponibles.map((caja) {
         return DropdownMenuItem(
           value: caja.id,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(caja.nombre),
+              Flexible(
+                child: Text(
+                  caja.nombre,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
-                'Saldo: ${Formatters.formatCurrency(caja.saldo)}',
+                Formatters.formatCurrency(caja.saldo),
                 style: TextStyle(
                   fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: Colors.grey[600],
                 ),
               ),

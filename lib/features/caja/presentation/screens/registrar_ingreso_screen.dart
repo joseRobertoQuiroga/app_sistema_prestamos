@@ -171,11 +171,11 @@ class _RegistrarIngresoScreenState extends ConsumerState<RegistrarIngresoScreen>
                   controller: _montoController,
                   label: 'Monto del Ingreso',
                   keyboardType: TextInputType.number,
-                  prefixIcon: Icons.attach_money,
-                  validator: Validators.combine([
-                    Validators.required('El monto es requerido'),
-                    Validators.amount(),
-                  ]),
+                  prefixIcon: const Icon(Icons.attach_money),
+                  validator: (value) => Validators.combine([
+                    (v) => Validators.required(v, fieldName: 'El monto'),
+                    (v) => Validators.amount(v, fieldName: 'El monto'),
+                  ])(value),
                 ),
                 
                 const SizedBox(height: 16),
@@ -205,8 +205,8 @@ class _RegistrarIngresoScreenState extends ConsumerState<RegistrarIngresoScreen>
                   controller: _descripcionController,
                   label: 'Descripción',
                   maxLines: 3,
-                  prefixIcon: Icons.description,
-                  validator: Validators.required('La descripción es requerida'),
+                  prefixIcon: const Icon(Icons.description),
+                  validator: (value) => Validators.required(value, fieldName: 'La descripción'),
                 ),
                 
                 const SizedBox(height: 16),
@@ -238,7 +238,7 @@ class _RegistrarIngresoScreenState extends ConsumerState<RegistrarIngresoScreen>
                 CustomTextField(
                   controller: _referenciaController,
                   label: 'Referencia / N° Documento (opcional)',
-                  prefixIcon: Icons.confirmation_number,
+                  prefixIcon: const Icon(Icons.confirmation_number),
                 ),
                 
                 const SizedBox(height: 32),

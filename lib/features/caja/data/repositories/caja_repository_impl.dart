@@ -4,6 +4,7 @@ import '../../domain/entities/movimiento.dart';
 import '../../domain/entities/resumen_caja.dart';
 import '../../domain/repositories/caja_repository.dart';
 import '../datasources/caja_local_data_source.dart';
+import '../models/caja_model.dart';
 import '../../../../core/errors/failures.dart';
 
 /// Implementación del repositorio de cajas

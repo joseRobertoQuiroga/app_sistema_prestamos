@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../data/database/database.dart';
+import '../../../../core/database/database.dart' hide Prestamo, Cuota;
 import '../../domain/entities/prestamo.dart';
 import '../../domain/entities/cuota.dart';
 import '../../domain/usecases/generar_codigo_prestamo.dart';

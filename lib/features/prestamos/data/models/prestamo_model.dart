@@ -1,211 +1,152 @@
-import 'package:dartz/dartz.dart';
-import '../../../../core/errors/failures.dart';
-import '../entities/cuota.dart';
-import '../repositories/prestamo_repository.dart';
+import 'package:drift/drift.dart' as drift;
+import '../../domain/entities/prestamo.dart';
+import '../../../../core/database/database.dart' as db;
 
-// ============================================================================
-// GET CUOTAS
-// ============================================================================
-
-class GetCuotasByPrestamo {
-  final PrestamoRepository repository;
-
-  GetCuotasByPrestamo(this.repository);
-
-  Future<Either<Failure, List<Cuota>>> call(int prestamoId) async {
-    return await repository.getCuotasByPrestamo(prestamoId);
-  }
-}
-
-class GetCuotaById {
-  final PrestamoRepository repository;
-
-  GetCuotaById(this.repository);
-
-  Future<Either<Failure, Cuota>> call(int id) async {
-    return await repository.getCuotaById(id);
-  }
-}
-
-class GetCuotasPendientes {
-  final PrestamoRepository repository;
-
-  GetCuotasPendientes(this.repository);
-
-  Future<Either<Failure, List<Cuota>>> call(int prestamoId) async {
-    return await repository.getCuotasPendientes(prestamoId);
-  }
-}
-
-class GetCuotasVencidas {
-  final PrestamoRepository repository;
-
-  GetCuotasVencidas(this.repository);
-
-  Future<Either<Failure, List<Cuota>>> call(int prestamoId) async {
-    return await repository.getCuotasVencidas(prestamoId);
-  }
-}
-
-// ============================================================================
-// UPDATE CUOTA
-// ============================================================================
-
-class UpdateCuota {
-  final PrestamoRepository repository;
-
-  UpdateCuota(this.repository);
-
-  Future<Either<Failure, void>> call(Cuota cuota) async {
-    if (cuota.id == null) {
-      return Left(ValidationFailure('La cuota debe tener un ID'));
-    }
-
-    return await repository.updateCuota(cuota);
-  }
-}
-
-// ============================================================================
-// CALCULAR MORA
-// ============================================================================
-
-class CalcularMoraCuota {
-  static const double tasaMoraDiaria = 0.5; // 0.5% por día
-
-  Either<Failure, double> call(Cuota cuota) {
-    try {
-      if (cuota.estaPagada) {
-        return const Right(0.0);
-      }
-
-      final now = DateTime.now();
-      if (!now.isAfter(cuota.fechaVencimiento)) {
-        return const Right(0.0);
-      }
-
-      final diasMora = now.difference(cuota.fechaVencimiento).inDays;
-      if (diasMora <= 0) {
-        return const Right(0.0);
-      }
-
-      final saldo = cuota.saldoCuota;
-      final mora = (saldo * tasaMoraDiaria / 100) * diasMora;
-
-      return Right(mora);
-    } catch (e) {
-      return Left(CalculationFailure('Error al calcular mora: ${e.toString()}'));
-    }
-  }
-}
-
-// ============================================================================
-// OBTENER PRÓXIMA CUOTA
-// ============================================================================
-
-class GetProximaCuota {
-  final PrestamoRepository repository;
-
-  GetProximaCuota(this.repository);
-
-  Future<Either<Failure, Cuota?>> call(int prestamoId) async {
-    final cuotasResult = await repository.getCuotasPendientes(prestamoId);
-
-    return cuotasResult.fold(
-      (failure) => Left(failure),
-      (cuotas) {
-        if (cuotas.isEmpty) {
-          return const Right(null);
-        }
-
-        // Ordenar por fecha de vencimiento
-        cuotas.sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
-        
-        return Right(cuotas.first);
-      },
-    );
-  }
-}
-
-// ============================================================================
-// OBTENER RESUMEN DE CUOTAS
-// ============================================================================
-
-class GetResumenCuotas {
-  final PrestamoRepository repository;
-
-  GetResumenCuotas(this.repository);
-
-  Future<Either<Failure, ResumenCuotas>> call(int prestamoId) async {
-    final cuotasResult = await repository.getCuotasByPrestamo(prestamoId);
-
-    return cuotasResult.fold(
-      (failure) => Left(failure),
-      (cuotas) {
-        int totalCuotas = cuotas.length;
-        int cuotasPagadas = 0;
-        int cuotasPendientes = 0;
-        int cuotasVencidas = 0;
-        double montoTotal = 0;
-        double montoPagado = 0;
-        double montoPendiente = 0;
-        double moraTotal = 0;
-
-        for (final cuota in cuotas) {
-          montoTotal += cuota.montoCuota;
-          montoPagado += cuota.montoPagado;
-          moraTotal += cuota.montoMora;
-
-          if (cuota.estaPagada) {
-            cuotasPagadas++;
-          } else {
-            montoPendiente += cuota.saldoCuota;
-            cuotasPendientes++;
-            
-            if (cuota.estaVencida) {
-              cuotasVencidas++;
-            }
-          }
-        }
-
-        return Right(ResumenCuotas(
-          totalCuotas: totalCuotas,
-          cuotasPagadas: cuotasPagadas,
-          cuotasPendientes: cuotasPendientes,
-          cuotasVencidas: cuotasVencidas,
-          montoTotal: montoTotal,
-          montoPagado: montoPagado,
-          montoPendiente: montoPendiente,
-          moraTotal: moraTotal,
-        ));
-      },
-    );
-  }
-}
-
-// Clase para el resumen de cuotas
-class ResumenCuotas {
-  final int totalCuotas;
-  final int cuotasPagadas;
-  final int cuotasPendientes;
-  final int cuotasVencidas;
-  final double montoTotal;
-  final double montoPagado;
-  final double montoPendiente;
-  final double moraTotal;
-
-  ResumenCuotas({
-    required this.totalCuotas,
-    required this.cuotasPagadas,
-    required this.cuotasPendientes,
-    required this.cuotasVencidas,
-    required this.montoTotal,
-    required this.montoPagado,
-    required this.montoPendiente,
-    required this.moraTotal,
+/// Modelo de Préstamo - Capa de Datos
+/// ✅ CORREGIDO: Mapeo completo entre entidad y Drift
+/// 
+/// Utiliza alias 'db' para evitar conflictos con la entidad 'Prestamo'
+class PrestamoModel extends Prestamo {
+  const PrestamoModel({
+    super.id,
+    required super.codigo,
+    required super.clienteId,
+    required super.cajaId,
+    required super.montoOriginal,
+    required super.montoTotal,
+    required super.saldoPendiente,
+    required super.tasaInteres,
+    required super.tipoInteres,
+    required super.plazoMeses,
+    required super.cuotaMensual,
+    required super.fechaInicio,
+    required super.fechaVencimiento,
+    required super.estado,
+    super.observaciones,
+    required super.fechaRegistro,
+    super.fechaActualizacion,
+    super.nombreCliente,
+    super.nombreCaja,
   });
 
-  double get porcentajePagado {
-    if (montoTotal == 0) return 0;
-    return (montoPagado / montoTotal) * 100;
+  /// Convertir desde Drift a Modelo
+  /// ✅ CORREGIDO: Recibe db.Prestamo y opcionalmente nombres de cliente y caja
+  factory PrestamoModel.fromDrift(
+    db.Prestamo data, {
+    String? nombreCliente,
+    String? nombreCaja,
+  }) {
+    return PrestamoModel(
+      id: data.id,
+      codigo: data.codigo,
+      clienteId: data.clienteId,
+      cajaId: data.cajaId,
+      montoOriginal: data.montoOriginal,
+      montoTotal: data.montoTotal,
+      saldoPendiente: data.saldoPendiente,
+      tasaInteres: data.tasaInteres,
+      // ✅ Convertir string de BD a enum TipoInteres
+      // Si la entidad tiene lógica de parseo, usarla. Si no, convertir manualmente.
+      // Asumimos que TipoInteres tiene un método o factory fromString
+      tipoInteres: _parseTipoInteres(data.tipoInteres), 
+      plazoMeses: data.plazoMeses,
+      cuotaMensual: data.cuotaMensual,
+      fechaInicio: data.fechaInicio,
+      fechaVencimiento: data.fechaVencimiento,
+      // ✅ Convertir string de BD a enum EstadoPrestamo
+      estado: _parseEstado(data.estado),
+      observaciones: data.observaciones,
+      fechaRegistro: data.fechaRegistro,
+      fechaActualizacion: data.fechaActualizacion,
+      nombreCliente: nombreCliente,
+      nombreCaja: nombreCaja,
+    );
   }
+
+  /// Convertir a Companion para INSERT
+  db.PrestamosCompanion toCompanion() {
+    return db.PrestamosCompanion.insert(
+      codigo: codigo,
+      clienteId: clienteId,
+      cajaId: cajaId,
+      montoOriginal: montoOriginal,
+      montoTotal: montoTotal,
+      saldoPendiente: saldoPendiente,
+      tasaInteres: tasaInteres,
+      tipoInteres: _enumToString(tipoInteres),
+      plazoMeses: plazoMeses,
+      cuotaMensual: cuotaMensual,
+      fechaInicio: fechaInicio,
+      fechaVencimiento: fechaVencimiento,
+      estado: _enumToString(estado),
+      observaciones: drift.Value(observaciones),
+      fechaRegistro: drift.Value(fechaRegistro),
+      fechaActualizacion: drift.Value(fechaActualizacion),
+    );
+  }
+
+  /// Convertir a Companion para UPDATE
+  db.PrestamosCompanion toCompanionForUpdate() {
+    return db.PrestamosCompanion(
+      id: drift.Value(id!),
+      codigo: drift.Value(codigo),
+      clienteId: drift.Value(clienteId),
+      cajaId: drift.Value(cajaId),
+      montoOriginal: drift.Value(montoOriginal),
+      montoTotal: drift.Value(montoTotal),
+      saldoPendiente: drift.Value(saldoPendiente),
+      tasaInteres: drift.Value(tasaInteres),
+      tipoInteres: drift.Value(_enumToString(tipoInteres)),
+      plazoMeses: drift.Value(plazoMeses),
+      cuotaMensual: drift.Value(cuotaMensual),
+      fechaInicio: drift.Value(fechaInicio),
+      fechaVencimiento: drift.Value(fechaVencimiento),
+      estado: drift.Value(_enumToString(estado)),
+      observaciones: drift.Value(observaciones),
+      fechaActualizacion: drift.Value(DateTime.now()),
+    );
+  }
+
+  /// Copiar desde entidad
+  factory PrestamoModel.fromEntity(Prestamo prestamo) {
+    return PrestamoModel(
+      id: prestamo.id,
+      codigo: prestamo.codigo,
+      clienteId: prestamo.clienteId,
+      cajaId: prestamo.cajaId,
+      montoOriginal: prestamo.montoOriginal,
+      montoTotal: prestamo.montoTotal,
+      saldoPendiente: prestamo.saldoPendiente,
+      tasaInteres: prestamo.tasaInteres,
+      tipoInteres: prestamo.tipoInteres,
+      plazoMeses: prestamo.plazoMeses,
+      cuotaMensual: prestamo.cuotaMensual,
+      fechaInicio: prestamo.fechaInicio,
+      fechaVencimiento: prestamo.fechaVencimiento,
+      estado: prestamo.estado,
+      observaciones: prestamo.observaciones,
+      fechaRegistro: prestamo.fechaRegistro,
+      fechaActualizacion: prestamo.fechaActualizacion,
+      nombreCliente: prestamo.nombreCliente,
+      nombreCaja: prestamo.nombreCaja,
+    );
+  }
+
+  // --- Helpers para Enums ---
+  
+  static TipoInteres _parseTipoInteres(String value) {
+    return TipoInteres.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => TipoInteres.simple, // Fallback por defecto
+    );
+  }
+
+  static EstadoPrestamo _parseEstado(String value) {
+    return EstadoPrestamo.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => EstadoPrestamo.activo, // Fallback
+    );
+  }
+
+  static String _enumToString(Object e) => e.toString().split('.').last;
 }

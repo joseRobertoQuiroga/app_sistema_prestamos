@@ -1,5 +1,6 @@
+import 'package:drift/drift.dart';
 import '../../domain/entities/cliente.dart';
-import '../../../../core/database/database.dart';
+import '../../../../core/database/database.dart' as db;
 
 /// Modelo de datos de Cliente - Capa de Datos
 /// 
@@ -40,59 +41,79 @@ class ClienteModel extends Cliente {
   }
 
   /// Crea un ClienteModel desde una fila de la base de datos Drift
-  factory ClienteModel.fromDrift(ClienteData data) {
+  factory ClienteModel.fromDrift(db.Cliente data) {
     return ClienteModel(
       id: data.id,
-      nombre: data.nombre,
-      ci: data.ci,
+      // DRIFT: nombres + apellidos → DOMAIN: nombre
+      nombre: '${data.nombres} ${data.apellidos}'.trim(),
+      // DRIFT: numeroDocumento → DOMAIN: ci
+      ci: data.numeroDocumento,
       telefono: data.telefono,
       email: data.email,
       direccion: data.direccion,
-      ciudad: data.ciudad,
-      departamento: data.departamento,
+      // Campos que NO existen en Drift
+      ciudad: null,
+      departamento: null,
       referencia: data.referencia,
       fechaRegistro: data.fechaRegistro,
       activo: data.activo,
-      notas: data.notas,
+      // DRIFT: observaciones → DOMAIN: notas
+      notas: data.observaciones,
     );
   }
 
   /// Convierte el modelo a un objeto Companion para inserción en Drift
-  ClientesCompanion toCompanion() {
-    return ClientesCompanion.insert(
-      nombre: nombre,
-      ci: ci,
-      telefono: Value(telefono),
+  db.ClientesCompanion toCompanion() {
+    final partes = _separarNombre(nombre);
+    
+    return db.ClientesCompanion.insert(
+      nombres: partes['nombres']!,
+      apellidos: partes['apellidos']!,
+      tipoDocumento: 'CI', // Valor por defecto
+      numeroDocumento: ci,
+      telefono: telefono ?? '', // Drift requiere no-null en definition
       email: Value(email),
-      direccion: Value(direccion),
-      ciudad: Value(ciudad),
-      departamento: Value(departamento),
+      direccion: direccion ?? '', // Drift requiere no-null
       referencia: Value(referencia),
-      fechaRegistro: fechaRegistro,
-      activo: activo,
-      notas: Value(notas),
+      observaciones: Value(notas),
+      fechaRegistro: Value(fechaRegistro),
+      activo: Value(activo ?? true),
     );
   }
 
   /// Convierte el modelo a un objeto Companion para actualización en Drift
-  ClientesCompanion toCompanionForUpdate() {
-    return ClientesCompanion(
+  db.ClientesCompanion toCompanionForUpdate() {
+    final partes = _separarNombre(nombre);
+    
+    return db.ClientesCompanion(
       id: Value(id!),
-      nombre: Value(nombre),
-      ci: Value(ci),
-      telefono: Value(telefono),
+      nombres: Value(partes['nombres']!),
+      apellidos: Value(partes['apellidos']!),
+      // tipoDocumento: const Value('CI'), // No actualizar tipo por defecto
+      numeroDocumento: Value(ci),
+      telefono: Value(telefono ?? ''),
       email: Value(email),
-      direccion: Value(direccion),
-      ciudad: Value(ciudad),
-      departamento: Value(departamento),
+      direccion: Value(direccion ?? ''),
       referencia: Value(referencia),
-      fechaRegistro: Value(fechaRegistro),
-      activo: Value(activo),
-      notas: Value(notas),
+      observaciones: Value(notas),
+      // fechaRegistro: Value(fechaRegistro), // No actualizar fecha registro
+      activo: Value(activo ?? true),
+      fechaActualizacion: Value(DateTime.now()),
     );
   }
 
-  /// Crea una copia del modelo como ClienteModel (no Cliente)
+  /// Helper para separar nombre y apellido
+  Map<String, String> _separarNombre(String nombreCompleto) {
+    final partes = nombreCompleto.trim().split(' ');
+    if (partes.length < 2) {
+      return {'nombres': partes.isNotEmpty ? partes[0] : '', 'apellidos': ''};
+    }
+    // Asumimos última palabra es apellido, resto nombres
+    final apellido = partes.last;
+    final nombres = partes.sublist(0, partes.length - 1).join(' ');
+    return {'nombres': nombres, 'apellidos': apellido};
+  }
+
   @override
   ClienteModel copyWith({
     int? id,
@@ -121,42 +142,6 @@ class ClienteModel extends Cliente {
       fechaRegistro: fechaRegistro ?? this.fechaRegistro,
       activo: activo ?? this.activo,
       notas: notas ?? this.notas,
-    );
-  }
-
-  /// Convierte a un Map (útil para debugging o JSON)
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'nombre': nombre,
-      'ci': ci,
-      'telefono': telefono,
-      'email': email,
-      'direccion': direccion,
-      'ciudad': ciudad,
-      'departamento': departamento,
-      'referencia': referencia,
-      'fechaRegistro': fechaRegistro.toIso8601String(),
-      'activo': activo,
-      'notas': notas,
-    };
-  }
-
-  /// Crea un ClienteModel desde un Map
-  factory ClienteModel.fromMap(Map<String, dynamic> map) {
-    return ClienteModel(
-      id: map['id'] as int?,
-      nombre: map['nombre'] as String,
-      ci: map['ci'] as String,
-      telefono: map['telefono'] as String?,
-      email: map['email'] as String?,
-      direccion: map['direccion'] as String?,
-      ciudad: map['ciudad'] as String?,
-      departamento: map['departamento'] as String?,
-      referencia: map['referencia'] as String?,
-      fechaRegistro: DateTime.parse(map['fechaRegistro'] as String),
-      activo: map['activo'] as bool? ?? true,
-      notas: map['notas'] as String?,
     );
   }
 }

@@ -14,7 +14,9 @@ import '../../features/caja/presentation/screens/registrar_ingreso_screen.dart';
 import '../../features/caja/presentation/screens/registrar_egreso_screen.dart';
 import '../../features/caja/presentation/screens/transferencia_screen.dart';
 import '../../features/pagos/presentation/screens/registrar_pago_screen.dart';
-import '../../shared/presentation/widgets/app_drawer.dart';
+import '../../features/pagos/presentation/screens/pagos_list_screen.dart'; // ✅ NUEVO
+import '../../features/reportes/presentation/screens/reportes_main_screen.dart';
+import '../../presentation/widgets/app_drawer.dart';
 
 class AppRouter {
   static const String dashboard = '/';
@@ -32,7 +34,7 @@ class AppRouter {
   static const String cajaIngreso = '/cajas/ingreso';
   static const String cajaEgreso = '/cajas/egreso';
   static const String transferencia = '/transferencias';
-  static const String movimientos = '/movimientos'; // Usaremos transferencia o placeholder
+  static const String movimientos = '/movimientos';
   static const String reportes = '/reportes';
 
   static final GoRouter router = GoRouter(
@@ -118,14 +120,13 @@ class AppRouter {
         ],
       ),
 
-      // Pagos
+      // Pagos - ✅ ACTUALIZADO
       GoRoute(
         path: pagos,
         name: 'pagos',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          // Temporalmente usamos Placeholder hasta tener PagosListScreen
-          child: const PlaceholderWithDrawer(title: 'Historial de Pagos'),
+          child: const PagosListScreen(), // ✅ Pantalla funcional
         ),
         routes: [
           GoRoute(
@@ -134,10 +135,17 @@ class AppRouter {
             pageBuilder: (context, state) {
               final prestamoIdParam = state.uri.queryParameters['prestamoId'];
               final prestamoId = prestamoIdParam != null ? int.tryParse(prestamoIdParam) : null;
-              // Si no hay prestamoId, redirigir o mostrar error (o permitir seleccionar préstamo)
+              final codigo = state.uri.queryParameters['prestamoCodigo'] ?? '';
+              final saldoParam = state.uri.queryParameters['saldoPendiente'];
+              final saldo = saldoParam != null ? double.tryParse(saldoParam) : 0.0;
+              
               return MaterialPage(
                 key: state.pageKey,
-                child: RegistrarPagoScreen(prestamoId: prestamoId ?? 0),
+                child: RegistrarPagoScreen(
+                  prestamoId: prestamoId ?? 0,
+                  prestamocodigo: codigo,
+                  saldoPendiente: saldo ?? 0.0,
+                ),
               );
             },
           ),
@@ -166,26 +174,26 @@ class AppRouter {
             },
           ),
           GoRoute(
-            path: 'ingreso', // Sub-ruta para ingresos
+            path: 'ingreso',
             name: 'registrar-ingreso',
             pageBuilder: (context, state) {
               final cajaIdParam = state.uri.queryParameters['cajaId'];
               final cajaId = cajaIdParam != null ? int.tryParse(cajaIdParam) : 0;
               return MaterialPage(
                 key: state.pageKey,
-                child: RegistrarIngresoScreen(cajaId: cajaId!),
+                child: RegistrarIngresoScreen(cajaId: cajaId ?? 0),
               );
             },
           ),
           GoRoute(
-            path: 'egreso', // Sub-ruta para egresos
+            path: 'egreso',
             name: 'registrar-egreso',
             pageBuilder: (context, state) {
-               final cajaIdParam = state.uri.queryParameters['cajaId'];
+              final cajaIdParam = state.uri.queryParameters['cajaId'];
               final cajaId = cajaIdParam != null ? int.tryParse(cajaIdParam) : 0;
               return MaterialPage(
                 key: state.pageKey,
-                child: RegistrarEgresoScreen(cajaId: cajaId!),
+                child: RegistrarEgresoScreen(cajaId: cajaId ?? 0),
               );
             },
           ),
@@ -209,11 +217,11 @@ class AppRouter {
         name: 'transferencias',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const TransferenciaScreen(), // Puede usarse como pantalla principal o modal
+          child: const TransferenciaScreen(),
         ),
       ),
 
-       // Movimientos
+      // Movimientos
       GoRoute(
         path: movimientos,
         name: 'movimientos',
@@ -229,7 +237,7 @@ class AppRouter {
         name: 'reportes',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const PlaceholderWithDrawer(title: 'Reportes y Estadísticas'),
+          child: const ReportesScreen(),
         ),
       ),
     ],
@@ -246,7 +254,7 @@ class AppRouter {
   );
 }
 
-// Widget auxiliar para pantallas pendientes que necesitan menú
+// Widget auxiliar para pantallas pendientes
 class PlaceholderWithDrawer extends StatelessWidget {
   final String title;
 
@@ -275,5 +283,3 @@ class PlaceholderWithDrawer extends StatelessWidget {
     );
   }
 }
-
-

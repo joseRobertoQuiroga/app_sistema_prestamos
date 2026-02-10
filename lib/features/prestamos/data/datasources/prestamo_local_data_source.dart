@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart';
-import '../../../../data/database/database.dart';
+import '../../../../core/database/database.dart';
 import '../../domain/entities/prestamo.dart';
 import '../../domain/entities/cuota.dart';
 import '../models/prestamo_model.dart';
 import '../models/cuota_model.dart';
 
+/// Data Source Local de Préstamos
+/// ✅ CORREGIDO: Incluye saldoAnterior y saldoNuevo en movimientos
 class PrestamoLocalDataSource {
   final AppDatabase database;
 
@@ -220,14 +222,26 @@ class PrestamoLocalDataSource {
   }
 
   // Registrar movimiento de egreso por préstamo
+  /// ✅ CORREGIDO: Incluye saldoAnterior y saldoNuevo
   Future<void> _registrarMovimientoEgreso({
     required int cajaId,
     required double monto,
     required int prestamoId,
   }) async {
     final now = DateTime.now();
+    
+    // Generar código único
     final codigo = 'MOV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
 
+    // ✅ Obtener saldo actual de la caja ANTES de insertar el movimiento
+    final caja = await (database.select(database.cajas)
+          ..where((tbl) => tbl.id.equals(cajaId)))
+        .getSingle();
+
+    final saldoAnterior = caja.saldoActual;
+    final saldoNuevo = saldoAnterior - monto;
+
+    // ✅ Insertar movimiento con saldoAnterior y saldoNuevo
     await database.into(database.movimientos).insert(
       MovimientosCompanion.insert(
         codigo: codigo,
@@ -236,21 +250,20 @@ class PrestamoLocalDataSource {
         monto: monto,
         categoria: 'PRESTAMO',
         descripcion: 'Desembolso de préstamo',
+        // ✅ CAMPOS AGREGADOS: saldoAnterior y saldoNuevo
+        saldoAnterior: saldoAnterior,
+        saldoNuevo: saldoNuevo,
         prestamoId: Value(prestamoId),
         fecha: now,
       ),
     );
 
     // Actualizar saldo de la caja
-    final caja = await (database.select(database.cajas)
-          ..where((tbl) => tbl.id.equals(cajaId)))
-        .getSingle();
-
     await (database.update(database.cajas)
           ..where((tbl) => tbl.id.equals(cajaId)))
         .write(
       CajasCompanion(
-        saldoActual: Value(caja.saldoActual - monto),
+        saldoActual: Value(saldoNuevo),
         fechaActualizacion: Value(DateTime.now()),
       ),
     );
@@ -258,9 +271,11 @@ class PrestamoLocalDataSource {
 
   // Actualizar préstamo
   Future<bool> updatePrestamo(PrestamoModel prestamo) async {
-    return await (database.update(database.prestamos)
+    final updated = await (database.update(database.prestamos)
           ..where((tbl) => tbl.id.equals(prestamo.id!)))
         .write(prestamo.toCompanionForUpdate());
+    
+    return updated > 0;
   }
 
   // Eliminar préstamo
@@ -273,7 +288,7 @@ class PrestamoLocalDataSource {
 
   // Cancelar préstamo
   Future<bool> cancelarPrestamo(int id) async {
-    return await (database.update(database.prestamos)
+    final updated = await (database.update(database.prestamos)
           ..where((tbl) => tbl.id.equals(id)))
         .write(
       PrestamosCompanion(
@@ -281,6 +296,8 @@ class PrestamoLocalDataSource {
         fechaActualizacion: Value(DateTime.now()),
       ),
     );
+    
+    return updated > 0;
   }
 
   // ============================================================================
@@ -338,9 +355,11 @@ class PrestamoLocalDataSource {
 
   // Actualizar cuota
   Future<bool> updateCuota(CuotaModel cuota) async {
-    return await (database.update(database.cuotas)
+    final updated = await (database.update(database.cuotas)
           ..where((tbl) => tbl.id.equals(cuota.id!)))
         .write(cuota.toCompanionForUpdate());
+    
+    return updated > 0;
   }
 
   // ============================================================================

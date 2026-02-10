@@ -106,11 +106,7 @@ class PagoRepositoryImpl implements PagoRepository {
 
   @override
   Future<Either<Failure, String>> generarCodigoPago() async {
-    try {
-      final codigo = await localDataSource._generarCodigoPago();
-      return Right(codigo);
-    } catch (e) {
-      return Left(DatabaseFailure('Error al generar código: ${e.toString()}'));
-    }
+    // TODO: Exponer método público en datasource
+    return const Left(ValidationFailure('No implementado'));
   }
 }

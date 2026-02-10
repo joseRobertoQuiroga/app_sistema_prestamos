@@ -106,6 +106,7 @@ class DetallePagos extends Table {
 }
 
 // Tabla de Movimientos de Caja
+// ⚠️ CORREGIDO: Agregadas columnas saldoAnterior y saldoNuevo
 class Movimientos extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get codigo => text().withLength(min: 1, max: 50).unique()();
@@ -114,6 +115,11 @@ class Movimientos extends Table {
   RealColumn get monto => real()();
   TextColumn get categoria => text().withLength(min: 1, max: 50)(); // PRESTAMO, PAGO, GASTO, TRANSFERENCIA, OTRO
   TextColumn get descripcion => text()();
+  
+  // ✅ COLUMNAS AGREGADAS PARA AUDITORÍA
+  RealColumn get saldoAnterior => real()(); // Saldo antes del movimiento
+  RealColumn get saldoNuevo => real()(); // Saldo después del movimiento
+  
   IntColumn get prestamoId => integer().references(Prestamos, #id).nullable()();
   IntColumn get pagoId => integer().references(Pagos, #id).nullable()();
   IntColumn get cajaDestinoId => integer().references(Cajas, #id).nullable()(); // Para transferencias
@@ -139,7 +145,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2; // ⚠️ INCREMENTADO porque agregamos columnas
 
   @override
   MigrationStrategy get migration {
@@ -159,7 +165,16 @@ class AppDatabase extends _$AppDatabase {
         );
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Aquí irán las migraciones futuras
+        // Migración de versión 1 a 2: Agregar columnas a Movimientos
+        if (from == 1 && to == 2) {
+          await m.addColumn(movimientos, movimientos.saldoAnterior);
+          await m.addColumn(movimientos, movimientos.saldoNuevo);
+          
+          // Actualizar movimientos existentes con valores por defecto
+          await customStatement(
+            'UPDATE movimientos SET saldo_anterior = 0.0, saldo_nuevo = 0.0'
+          );
+        }
       },
     );
   }
@@ -167,7 +182,7 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsFolder();
+    final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'prestamos_db.sqlite'));
     return NativeDatabase.createInBackground(file);
   });

@@ -1,13 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/movimiento.dart';
+import '../../domain/entities/resumen_caja.dart';
 import '../../domain/usecases/caja_usecases.dart';
 import '../../data/datasources/caja_local_data_source.dart';
 import '../../data/repositories/caja_repository_impl.dart';
-import '../../../../core/database/database.dart';
+import '../../../../core/database/database_provider.dart';
 
-// Provider de database
-final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
 // Provider del data source
 final cajaLocalDataSourceProvider = Provider<CajaLocalDataSource>((ref) {
@@ -113,6 +112,34 @@ final saldoTotalProvider = FutureProvider<double>((ref) async {
   return result.fold(
     (failure) => 0.0,
     (saldo) => saldo,
+  );
+});
+
+// Provider de use case - GetCajaById
+final getCajaByIdUseCaseProvider = Provider<GetCajaById>((ref) {
+  return GetCajaById(ref.watch(cajaRepositoryProvider));
+});
+
+// Provider para obtener una caja por ID
+final cajaByIdProvider = FutureProvider.family<Caja?, int>((ref, id) async {
+  if (id <= 0) return null;
+  final useCase = ref.watch(getCajaByIdUseCaseProvider);
+  final result = await useCase(id);
+  
+  return result.fold(
+    (failure) => null, // O manejar error
+    (caja) => caja,
+  );
+});
+
+// Provider para resumen de caja
+final resumenCajaProvider = FutureProvider.family<ResumenCaja, int>((ref, cajaId) async {
+  final useCase = ref.watch(getResumenCajaUseCaseProvider);
+  final result = await useCase(cajaId);
+  
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (resumen) => resumen,
   );
 });
 

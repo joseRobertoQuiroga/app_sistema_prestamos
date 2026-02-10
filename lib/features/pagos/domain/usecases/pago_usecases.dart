@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import '../entities/pago.dart';
 import '../entities/resultado_aplicacion_pago.dart';
 import '../repositories/pago_repository.dart';
 import '../../../../core/errors/failures.dart';
@@ -63,13 +64,24 @@ class RegistrarPago {
   }
 }
 
+/// ✅ NUEVO: Use Case: Obtener Todos los Pagos
+class GetPagos {
+  final PagoRepository repository;
+
+  GetPagos(this.repository);
+
+  Future<Either<Failure, List<Pago>>> call() async {
+    return await repository.getPagos();
+  }
+}
+
 /// Use Case: Obtener Pagos por Préstamo
 class GetPagosByPrestamo {
   final PagoRepository repository;
 
   GetPagosByPrestamo(this.repository);
 
-  Future<Either<Failure, List>> call(int prestamoId) async {
+  Future<Either<Failure, List<Pago>>> call(int prestamoId) async {
     if (prestamoId <= 0) {
       return Left(ValidationFailure('ID de préstamo inválido'));
     }

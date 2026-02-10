@@ -102,19 +102,23 @@ class CajaLocalDataSource {
       final saldoAnterior = caja.saldo;
       final saldoNuevo = saldoAnterior + monto;
 
+      // ✅ Generar código único
+      final codigo = MovimientoModel.generarCodigo();
+
       // Crear movimiento
       final movimientoId = await database.into(database.movimientos).insert(
             MovimientosCompanion.insert(
+              codigo: codigo, // ✅ CAMPO OBLIGATORIO
               cajaId: cajaId,
               tipo: 'INGRESO',
               categoria: categoria,
               monto: monto,
               descripcion: descripcion,
               fecha: fecha,
-              saldoAnterior: saldoAnterior,
-              saldoNuevo: saldoNuevo,
-              referencia: Value(referencia),
-              fechaRegistro: DateTime.now(),
+              saldoAnterior: saldoAnterior, // ✅ AHORA existe en Drift
+              saldoNuevo: saldoNuevo, // ✅ AHORA existe en Drift
+              observaciones: Value(referencia),
+              fechaRegistro: Value(DateTime.now()),
             ),
           );
 
@@ -122,7 +126,7 @@ class CajaLocalDataSource {
       await (database.update(database.cajas)
             ..where((tbl) => tbl.id.equals(cajaId)))
           .write(CajasCompanion(
-        saldo: Value(saldoNuevo),
+        saldoActual: Value(saldoNuevo), // ✅ Usar saldoActual
         fechaActualizacion: Value(DateTime.now()),
       ));
 
@@ -155,19 +159,23 @@ class CajaLocalDataSource {
       final saldoAnterior = caja.saldo;
       final saldoNuevo = saldoAnterior - monto;
 
+      // ✅ Generar código único
+      final codigo = MovimientoModel.generarCodigo();
+
       // Crear movimiento
       final movimientoId = await database.into(database.movimientos).insert(
             MovimientosCompanion.insert(
+              codigo: codigo, // ✅ CAMPO OBLIGATORIO
               cajaId: cajaId,
               tipo: 'EGRESO',
               categoria: categoria,
               monto: monto,
               descripcion: descripcion,
               fecha: fecha,
-              saldoAnterior: saldoAnterior,
-              saldoNuevo: saldoNuevo,
-              referencia: Value(referencia),
-              fechaRegistro: DateTime.now(),
+              saldoAnterior: saldoAnterior, // ✅ AHORA existe en Drift
+              saldoNuevo: saldoNuevo, // ✅ AHORA existe en Drift
+              observaciones: Value(referencia),
+              fechaRegistro: Value(DateTime.now()),
             ),
           );
 
@@ -175,7 +183,7 @@ class CajaLocalDataSource {
       await (database.update(database.cajas)
             ..where((tbl) => tbl.id.equals(cajaId)))
           .write(CajasCompanion(
-        saldo: Value(saldoNuevo),
+        saldoActual: Value(saldoNuevo), // ✅ Usar saldoActual
         fechaActualizacion: Value(DateTime.now()),
       ));
 
@@ -206,11 +214,18 @@ class CajaLocalDataSource {
         throw Exception('Saldo insuficiente en ${cajaOrigen.nombre}');
       }
 
+      // ✅ Generar códigos únicos
+      final codigoSalida = MovimientoModel.generarCodigo();
+      // Pequeño delay para asegurar códigos diferentes
+      await Future.delayed(const Duration(milliseconds: 1));
+      final codigoEntrada = MovimientoModel.generarCodigo();
+
       // 1. Crear movimiento de SALIDA en caja origen
       final salidaId = await database.into(database.movimientos).insert(
             MovimientosCompanion.insert(
+              codigo: codigoSalida, // ✅ CAMPO OBLIGATORIO
               cajaId: cajaOrigenId,
-              tipo: 'TRANSFERENCIA',
+              tipo: 'EGRESO', // ✅ Cambiado de TRANSFERENCIA a EGRESO
               categoria: 'TRANSFERENCIA',
               monto: monto,
               descripcion: 'Transferencia a ${cajaDestino.nombre}: $descripcion',
@@ -218,8 +233,8 @@ class CajaLocalDataSource {
               saldoAnterior: cajaOrigen.saldo,
               saldoNuevo: cajaOrigen.saldo - monto,
               cajaDestinoId: Value(cajaDestinoId),
-              referencia: Value(referencia),
-              fechaRegistro: DateTime.now(),
+              observaciones: Value(referencia),
+              fechaRegistro: Value(DateTime.now()),
             ),
           );
 
@@ -227,15 +242,16 @@ class CajaLocalDataSource {
       await (database.update(database.cajas)
             ..where((tbl) => tbl.id.equals(cajaOrigenId)))
           .write(CajasCompanion(
-        saldo: Value(cajaOrigen.saldo - monto),
+        saldoActual: Value(cajaOrigen.saldo - monto), // ✅ Usar saldoActual
         fechaActualizacion: Value(DateTime.now()),
       ));
 
       // 3. Crear movimiento de ENTRADA en caja destino
       final entradaId = await database.into(database.movimientos).insert(
             MovimientosCompanion.insert(
+              codigo: codigoEntrada, // ✅ CAMPO OBLIGATORIO
               cajaId: cajaDestinoId,
-              tipo: 'TRANSFERENCIA',
+              tipo: 'INGRESO', // ✅ Cambiado de TRANSFERENCIA a INGRESO
               categoria: 'TRANSFERENCIA',
               monto: monto,
               descripcion: 'Transferencia desde ${cajaOrigen.nombre}: $descripcion',
@@ -243,8 +259,8 @@ class CajaLocalDataSource {
               saldoAnterior: cajaDestino.saldo,
               saldoNuevo: cajaDestino.saldo + monto,
               cajaDestinoId: Value(cajaOrigenId), // Referencia cruzada
-              referencia: Value(referencia),
-              fechaRegistro: DateTime.now(),
+              observaciones: Value(referencia),
+              fechaRegistro: Value(DateTime.now()),
             ),
           );
 
@@ -252,7 +268,7 @@ class CajaLocalDataSource {
       await (database.update(database.cajas)
             ..where((tbl) => tbl.id.equals(cajaDestinoId)))
           .write(CajasCompanion(
-        saldo: Value(cajaDestino.saldo + monto),
+        saldoActual: Value(cajaDestino.saldo + monto), // ✅ Usar saldoActual
         fechaActualizacion: Value(DateTime.now()),
       ));
 
@@ -307,9 +323,14 @@ class CajaLocalDataSource {
 
   // ============= CONSULTAS =============
 
+  // ✅ CORREGIDO: Método getSaldoTotal con iteración explícita
   Future<double> getSaldoTotal() async {
     final cajas = await getCajasActivas();
-    return cajas.fold(0.0, (sum, caja) => sum + caja.saldo);
+    double total = 0.0;
+    for (final caja in cajas) {
+      total += caja.saldo;
+    }
+    return total;
   }
 
   Future<ResumenCaja> getResumenCaja(int cajaId) async {
@@ -327,11 +348,11 @@ class CajaLocalDataSource {
         totalIngresos += mov.monto;
       } else if (mov.tipo == 'EGRESO' && mov.categoria != 'TRANSFERENCIA') {
         totalEgresos += mov.monto;
-      } else if (mov.tipo == 'TRANSFERENCIA') {
-        // Determinar si es entrada o salida
-        if (mov.cajaId == cajaId && mov.saldoNuevo < mov.saldoAnterior) {
+      } else if (mov.categoria == 'TRANSFERENCIA') {
+        // Determinar si es entrada o salida basándose en el tipo
+        if (mov.tipo == 'EGRESO') {
           totalTransferenciasSalida += mov.monto;
-        } else if (mov.cajaId == cajaId && mov.saldoNuevo > mov.saldoAnterior) {
+        } else if (mov.tipo == 'INGRESO') {
           totalTransferenciasEntrada += mov.monto;
         }
       }

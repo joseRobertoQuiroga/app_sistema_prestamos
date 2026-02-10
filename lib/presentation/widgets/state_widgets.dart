@@ -48,14 +48,14 @@ class LoadingWidget extends StatelessWidget {
 }
 
 /// Widget para mostrar estado de error
-class ErrorWidget extends StatelessWidget {
+class ErrorState extends StatelessWidget {
   final String message;
   final String? details;
   final IconData? icon;
   final VoidCallback? onRetry;
   final String? retryButtonText;
 
-  const ErrorWidget({
+  const ErrorState({
     super.key,
     required this.message,
     this.details,
@@ -363,7 +363,7 @@ class StateWidget<T> extends StatelessWidget {
           ? errorMessageBuilder!(snapshot.error!)
           : 'Ocurrió un error: ${snapshot.error}';
       
-      return ErrorWidget(
+      return ErrorState(
         message: errorMessage,
         onRetry: onRetry,
       );

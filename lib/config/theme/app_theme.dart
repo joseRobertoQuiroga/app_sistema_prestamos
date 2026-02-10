@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Colores principales
+  // Design constants for responsive layout
+  static const double maxContentWidth = 1200.0;
+  static const double maxFormWidth = 800.0;
+  static const double standardPadding = 16.0;
+  static const double largePadding = 24.0;
+  static const double extraLargePadding = 32.0;
+  static const double sectionSpacing = 32.0;
+  static const double cardSpacing = 16.0;
+  
+  // Colores principales - Modernizados
   static const Color primaryColor = Color(0xFF1976D2); // Azul
   static const Color secondaryColor = Color(0xFF424242); // Gris oscuro
   static const Color accentColor = Color(0xFF4CAF50); // Verde
@@ -44,26 +53,30 @@ class AppTheme {
         ),
       ),
 
-      // Cards ✅ CORREGIDO
+      // Cards - Mejorado
       cardTheme: CardThemeData(
-        elevation: 2,
+        elevation: 1,
+        shadowColor: Colors.black26,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.symmetric(
+          horizontal: standardPadding,
+          vertical: cardSpacing / 2,
+        ),
       ),
 
-      // Input Decoration
+      // Input Decoration - Mejorado
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.grey.shade100,
+        fillColor: Colors.grey.shade50,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -77,7 +90,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: errorColor, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: standardPadding,
+          vertical: standardPadding,
+        ),
         labelStyle: GoogleFonts.poppins(fontSize: 14),
         hintStyle: GoogleFonts.poppins(
           fontSize: 14,
@@ -89,7 +105,10 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: largePadding,
+            vertical: standardPadding,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -103,7 +122,10 @@ class AppTheme {
       // Outlined Button
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: largePadding,
+            vertical: standardPadding,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -117,7 +139,10 @@ class AppTheme {
       // Text Button
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: standardPadding,
+            vertical: 12,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -140,7 +165,7 @@ class AppTheme {
         space: 1,
       ),
 
-      // Dialog ✅ CORREGIDO
+      // Dialog
       dialogTheme: DialogThemeData(
         elevation: 8,
         shape: RoundedRectangleBorder(

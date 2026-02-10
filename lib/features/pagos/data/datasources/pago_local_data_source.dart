@@ -2,14 +2,15 @@ import 'package:drift/drift.dart';
 import '../models/pago_model.dart';
 import '../../domain/entities/resultado_aplicacion_pago.dart';
 import '../../domain/entities/detalle_pago.dart';
-import '../../../../core/database/database.dart';
+import '../../../../core/database/database.dart' as db;
 
 /// Data Source Local de Pagos
+/// ✅ CORREGIDO: Movimientos con código, saldoAnterior y saldoNuevo
 /// 
 /// Implementa la lógica de aplicación en cascada:
 /// Mora → Interés → Capital
 class PagoLocalDataSource {
-  final AppDatabase database;
+  final db.AppDatabase database;
 
   PagoLocalDataSource(this.database);
 
@@ -24,6 +25,13 @@ class PagoLocalDataSource {
     String? observaciones,
   }) async {
     return await database.transaction(() async {
+      // 0. Obtener clienteId del préstamo (requerido por Drift)
+      final prestamo = await (database.select(database.prestamos)
+            ..where((tbl) => tbl.id.equals(prestamoId)))
+          .getSingle();
+
+      final clienteId = prestamo.clienteId;
+
       // 1. Generar código de pago
       final codigo = await _generarCodigoPago();
 
@@ -43,34 +51,32 @@ class PagoLocalDataSource {
 
       // 4. Crear el registro de pago
       final pagoId = await database.into(database.pagos).insert(
-            PagosCompanion.insert(
+            db.PagosCompanion.insert(
               prestamoId: prestamoId,
+              clienteId: clienteId, // ✅ Campo requerido
               codigo: codigo,
-              montoTotal: monto,
-              montoMora: resultado.totalMora,
+              montoPago: monto,
+              montoMora: Value(resultado.totalMora),
               montoInteres: resultado.totalInteres,
               montoCapital: resultado.totalCapital,
               fechaPago: fechaPago,
-              cajaId: Value(cajaId),
-              metodoPago: Value(metodoPago),
-              referencia: Value(referencia),
+              cajaId: cajaId ?? 1,
+              metodoPago: metodoPago ?? 'EFECTIVO',
               observaciones: Value(observaciones),
-              fechaRegistro: DateTime.now(),
+              fechaRegistro: Value(DateTime.now()),
             ),
           );
 
       // 5. Guardar los detalles de aplicación
       for (final detalle in resultado.detalles) {
         await database.into(database.detallePagos).insert(
-              DetallePagosCompanion.insert(
+              db.DetallePagosCompanion.insert(
                 pagoId: pagoId,
                 cuotaId: detalle.cuotaId,
-                numeroCuota: detalle.numeroCuota,
-                montoMora: detalle.montoMora,
-                montoInteres: detalle.montoInteres,
-                montoCapital: detalle.montoCapital,
-                montoTotal: detalle.montoTotal,
-                fechaRegistro: DateTime.now(),
+                // ✅ Drift solo guarda montoAplicado y montoMora
+                montoAplicado: detalle.montoTotal,
+                montoMora: Value(detalle.montoMora),
+                fechaRegistro: Value(DateTime.now()),
               ),
             );
       }
@@ -82,6 +88,7 @@ class PagoLocalDataSource {
           monto: monto,
           descripcion: 'Pago de préstamo $codigo',
           fechaPago: fechaPago,
+          pagoId: pagoId,
         );
       }
 
@@ -93,8 +100,9 @@ class PagoLocalDataSource {
   }
 
   /// Aplica el pago en cascada sobre las cuotas
+  /// Usa db.Cuota en lugar de CuotaData
   Future<ResultadoAplicacionPago> _aplicarPagoEnCascada({
-    required List<CuotaData> cuotas,
+    required List<db.Cuota> cuotas,
     required double montoDisponible,
     required DateTime fechaPago,
   }) async {
@@ -151,7 +159,7 @@ class PagoLocalDataSource {
       await (database.update(database.cuotas)
             ..where((tbl) => tbl.id.equals(cuota.id)))
           .write(
-        CuotasCompanion(
+        db.CuotasCompanion(
           montoPagado: Value(nuevoMontoPagado),
           montoMora: Value(nuevaMora > 0 ? nuevaMora : 0),
           fechaPago: Value(fechaPago),
@@ -202,7 +210,8 @@ class PagoLocalDataSource {
   }
 
   /// Obtiene cuotas pendientes ordenadas por vencimiento
-  Future<List<CuotaData>> _getCuotasPendientesOrdenadas(int prestamoId) async {
+  /// Usa db.Cuota en lugar de CuotaData
+  Future<List<db.Cuota>> _getCuotasPendientesOrdenadas(int prestamoId) async {
     return await (database.select(database.cuotas)
           ..where((tbl) => tbl.prestamoId.equals(prestamoId))
           ..where((tbl) => tbl.estado.isNotValue('PAGADA'))
@@ -211,7 +220,7 @@ class PagoLocalDataSource {
   }
 
   /// Calcula la mora acumulada de una cuota
-  double _calcularMora(CuotaData cuota, DateTime fechaPago) {
+  double _calcularMora(db.Cuota cuota, DateTime fechaPago) {
     if (fechaPago.isBefore(cuota.fechaVencimiento) || 
         fechaPago.isAtSameMomentAs(cuota.fechaVencimiento)) {
       return 0;
@@ -245,7 +254,7 @@ class PagoLocalDataSource {
     final now = DateTime.now();
     final yearMonth = '${now.year}${now.month.toString().padLeft(2, '0')}';
     
-    final count = await database.selectOnly(database.pagos)
+    final count = database.selectOnly(database.pagos)
       ..addColumns([database.pagos.id.count()]);
     
     final result = await count.getSingle();
@@ -256,36 +265,54 @@ class PagoLocalDataSource {
   }
 
   /// Registra el movimiento en la caja
+  /// ✅ CORREGIDO: Incluye código, saldoAnterior y saldoNuevo
   Future<void> _registrarMovimientoEnCaja({
     required int cajaId,
     required double monto,
     required String descripcion,
     required DateTime fechaPago,
+    required int pagoId,
   }) async {
     // Obtener caja actual
     final caja = await (database.select(database.cajas)
           ..where((tbl) => tbl.id.equals(cajaId)))
         .getSingle();
 
+    // ✅ Usar saldoActual (no saldo)
+    final saldoAnterior = caja.saldoActual;
+    final saldoNuevo = saldoAnterior + monto;
+
+    // ✅ Generar código único para el movimiento
+    final now = DateTime.now();
+    final codigo = 'MOV-${now.year}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
+
     // Registrar movimiento de ingreso
     await database.into(database.movimientos).insert(
-      MovimientosCompanion.insert(
+      db.MovimientosCompanion.insert(
+        codigo: codigo, // ✅ Campo obligatorio
         cajaId: cajaId,
         tipo: 'INGRESO',
         categoria: 'PAGO',
         monto: monto,
         descripcion: descripcion,
         fecha: fechaPago,
-        saldoAnterior: caja.saldo,
-        saldoNuevo: caja.saldo + monto,
-        fechaRegistro: DateTime.now(),
+        // ✅ Campos agregados: saldoAnterior y saldoNuevo
+        saldoAnterior: saldoAnterior,
+        saldoNuevo: saldoNuevo,
+        pagoId: Value(pagoId), // pagoId es nullable, usar Value
+        fechaRegistro: Value(DateTime.now()),
+        // Observaciones mapeado a referencia si existe, aqui descripcion esta en descripcion.
+        // Movimientos tiene observaciones? Sí, para referencia.
       ),
     );
 
     // Actualizar saldo de caja
     await (database.update(database.cajas)
           ..where((tbl) => tbl.id.equals(cajaId)))
-        .write(CajasCompanion(saldo: Value(caja.saldo + monto)));
+        .write(db.CajasCompanion(
+          saldoActual: Value(saldoNuevo), // ✅ Usar saldoActual
+          fechaActualizacion: Value(DateTime.now()),
+        ));
   }
 
   /// Actualiza estados de cuotas y préstamo
@@ -297,7 +324,7 @@ class PagoLocalDataSource {
               tbl.prestamoId.equals(prestamoId) &
               tbl.fechaVencimiento.isSmallerThanValue(hoy) &
               tbl.estado.equals('PENDIENTE')))
-        .write(const CuotasCompanion(estado: Value('MORA')));
+        .write(const db.CuotasCompanion(estado: Value('MORA')));
 
     // Verificar estado del préstamo
     final cuotasPendientes = await (database.select(database.cuotas)
@@ -316,7 +343,10 @@ class PagoLocalDataSource {
 
     await (database.update(database.prestamos)
           ..where((tbl) => tbl.id.equals(prestamoId)))
-        .write(PrestamosCompanion(estado: Value(nuevoEstado)));
+        .write(db.PrestamosCompanion(
+          estado: Value(nuevoEstado),
+          fechaActualizacion: Value(DateTime.now()),
+        ));
   }
 
   /// Genera mensaje del resultado
@@ -325,7 +355,7 @@ class PagoLocalDataSource {
     required int cuotasAfectadas,
     required int cuotasPagadas,
   }) {
-    return 'Pago de Bs. $montoAplicado aplicado a $cuotasAfectadas cuota(s). '
+    return 'Pago de Bs. ${montoAplicado.toStringAsFixed(2)} aplicado a $cuotasAfectadas cuota(s). '
         '$cuotasPagadas cuota(s) pagada(s) completamente.';
   }
 
@@ -357,7 +387,7 @@ class PagoLocalDataSource {
   Future<List<DetallePagoModel>> getDetallesPago(int pagoId) async {
     final detalles = await (database.select(database.detallePagos)
           ..where((tbl) => tbl.pagoId.equals(pagoId))
-          ..orderBy([(tbl) => OrderingTerm.asc(tbl.numeroCuota)]))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
         .get();
     
     return detalles.map((d) => DetallePagoModel.fromDrift(d)).toList();

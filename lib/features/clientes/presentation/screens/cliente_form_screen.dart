@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../domain/entities/cliente.dart';
 import '../providers/cliente_provider.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../presentation/widgets/custom_text_field.dart';
 
-/// Pantalla de formulario para crear o editar un cliente
+/// Pantalla de formulario para crear o editar un cliente con diseño premium
 class ClienteFormScreen extends ConsumerStatefulWidget {
   final int? clienteId;
 
@@ -121,7 +124,8 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
                   ? 'Cliente actualizado exitosamente' 
                   : 'Cliente creado exitosamente',
             ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
@@ -130,6 +134,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
           SnackBar(
             content: Text(error ?? 'Error al guardar cliente'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -138,194 +143,243 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditMode ? 'Editar Cliente' : 'Nuevo Cliente'),
+        title: Text(_isEditMode ? 'Editar Perfil' : 'Nuevo Cliente'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: isDark ? Colors.white : Colors.black87,
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Información básica
-            Text(
-              'Información Básica',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Sección: Identificación
+              _buildFormSection(
+                context,
+                title: 'IDENTIFICACIÓN',
+                icon: Icons.person_rounded,
+                children: [
+                  CustomTextField(
+                    label: 'Nombre completo',
+                    controller: _nombreController,
+                    hintText: 'Ingresar nombre y apellido',
+                    prefixIcon: Icons.account_circle_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    validator: (value) => Validators.name(value, fieldName: 'El nombre'),
                   ),
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _nombreController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre completo *',
-                prefixIcon: Icon(Icons.person),
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.words,
-              validator: (value) => Validators.name(value, fieldName: 'El nombre'),
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _ciController,
-              decoration: const InputDecoration(
-                labelText: 'Cédula de Identidad *',
-                prefixIcon: Icon(Icons.badge),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-              validator: Validators.document,
-            ),
-            const SizedBox(height: 24),
-
-            // Contacto
-            Text(
-              'Contacto',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    label: 'Documento (CI)',
+                    controller: _ciController,
+                    hintText: 'Ingresar CI sin puntos ni guiones',
+                    prefixIcon: Icons.badge_rounded,
+                    keyboardType: TextInputType.number,
+                    validator: Validators.document,
                   ),
-            ),
-            const SizedBox(height: 16),
+                ],
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
-            TextFormField(
-              controller: _telefonoController,
-              decoration: const InputDecoration(
-                labelText: 'Teléfono',
-                prefixIcon: Icon(Icons.phone),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.phone,
-              validator: Validators.phoneOptional,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 24),
-
-            // Dirección
-            Text(
-              'Dirección',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+              // Sección: Contacto
+              _buildFormSection(
+                context,
+                title: 'COMUNICACIÓN',
+                icon: Icons.contact_phone_rounded,
+                children: [
+                  CustomTextField(
+                    label: 'Teléfono de contacto',
+                    controller: _telefonoController,
+                    hintText: 'Ej: 0981 123 456',
+                    prefixIcon: Icons.phone_android_rounded,
+                    keyboardType: TextInputType.phone,
+                    validator: Validators.phoneOptional,
                   ),
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    label: 'Correo Electrónico',
+                    controller: _emailController,
+                    hintText: 'ejemplo@correo.com (Opcional)',
+                    prefixIcon: Icons.alternate_email_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                ],
+              ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
 
-            TextFormField(
-              controller: _direccionController,
-              decoration: const InputDecoration(
-                labelText: 'Dirección',
-                prefixIcon: Icon(Icons.location_on),
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _ciudadController,
-                    decoration: const InputDecoration(
-                      labelText: 'Ciudad',
-                      border: OutlineInputBorder(),
+              // Sección: Ubicación
+              _buildFormSection(
+                context,
+                title: 'UBICACIÓN',
+                icon: Icons.location_on_rounded,
+                children: [
+                  CustomTextField(
+                    label: 'Dirección particular',
+                    controller: _direccionController,
+                    hintText: 'Calle, número de casa, etc.',
+                    prefixIcon: Icons.home_rounded,
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Ciudad',
+                          controller: _ciudadController,
+                          hintText: 'Localidad',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Dpto.',
+                          controller: _departamentoController,
+                          hintText: 'Departamento',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    label: 'Referencia',
+                    controller: _referenciaController,
+                    hintText: 'Ej: Detrás de la terminal...',
+                    prefixIcon: Icons.near_me_rounded,
+                  ),
+                ],
+              ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
+
+              const SizedBox(height: 24),
+
+              // Sección: Otros
+              _buildFormSection(
+                context,
+                title: 'OTROS DATOS',
+                icon: Icons.more_horiz_rounded,
+                children: [
+                  CustomTextField(
+                    label: 'Observaciones / Notas',
+                    controller: _notasController,
+                    hintText: 'Cualquier detalle relevante...',
+                    prefixIcon: Icons.note_rounded,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                    ),
+                    child: SwitchListTile(
+                      title: const Text('Cliente Activo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Controla si el cliente puede operar', style: TextStyle(fontSize: 12)),
+                      value: _activo,
+                      onChanged: (value) => setState(() => _activo = value),
+                      activeColor: AppTheme.primaryBrand,
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _departamentoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Departamento',
-                      border: OutlineInputBorder(),
+                ],
+              ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideY(begin: 0.1, end: 0),
+
+              const SizedBox(height: 40),
+
+              // Botones de acción
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('CANCELAR', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _referenciaController,
-              decoration: const InputDecoration(
-                labelText: 'Referencia',
-                hintText: 'Ej: Cerca de...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Notas
-            Text(
-              'Notas Adicionales',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveCliente,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBrand,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(_isEditMode ? 'ACTUALIZAR' : 'REGISTRAR', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _notasController,
-              decoration: const InputDecoration(
-                labelText: 'Notas',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-
-            // Estado activo
-            SwitchListTile(
-              title: const Text('Cliente activo'),
-              value: _activo,
-              onChanged: (value) => setState(() => _activo = value),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Botones
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _isLoading ? null : () => Navigator.pop(context),
-                    child: const Text('Cancelar'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _isLoading ? null : _saveCliente,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_isEditMode ? 'Actualizar' : 'Guardar'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
+              
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFormSection(BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: isDark ? Border.all(color: Colors.white.withOpacity(0.05)) : null,
+        boxShadow: !isDark ? [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ] : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: AppTheme.primaryBrand),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.primaryBrand,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...children,
+        ],
       ),
     );
   }

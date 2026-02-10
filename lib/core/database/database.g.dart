@@ -3702,6 +3702,18 @@ class $MovimientosTable extends Movimientos
   late final GeneratedColumn<String> descripcion = GeneratedColumn<String>(
       'descripcion', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _saldoAnteriorMeta =
+      const VerificationMeta('saldoAnterior');
+  @override
+  late final GeneratedColumn<double> saldoAnterior = GeneratedColumn<double>(
+      'saldo_anterior', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _saldoNuevoMeta =
+      const VerificationMeta('saldoNuevo');
+  @override
+  late final GeneratedColumn<double> saldoNuevo = GeneratedColumn<double>(
+      'saldo_nuevo', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
   static const VerificationMeta _prestamoIdMeta =
       const VerificationMeta('prestamoId');
   @override
@@ -3756,6 +3768,8 @@ class $MovimientosTable extends Movimientos
         monto,
         categoria,
         descripcion,
+        saldoAnterior,
+        saldoNuevo,
         prestamoId,
         pagoId,
         cajaDestinoId,
@@ -3814,6 +3828,22 @@ class $MovimientosTable extends Movimientos
     } else if (isInserting) {
       context.missing(_descripcionMeta);
     }
+    if (data.containsKey('saldo_anterior')) {
+      context.handle(
+          _saldoAnteriorMeta,
+          saldoAnterior.isAcceptableOrUnknown(
+              data['saldo_anterior']!, _saldoAnteriorMeta));
+    } else if (isInserting) {
+      context.missing(_saldoAnteriorMeta);
+    }
+    if (data.containsKey('saldo_nuevo')) {
+      context.handle(
+          _saldoNuevoMeta,
+          saldoNuevo.isAcceptableOrUnknown(
+              data['saldo_nuevo']!, _saldoNuevoMeta));
+    } else if (isInserting) {
+      context.missing(_saldoNuevoMeta);
+    }
     if (data.containsKey('prestamo_id')) {
       context.handle(
           _prestamoIdMeta,
@@ -3871,6 +3901,10 @@ class $MovimientosTable extends Movimientos
           .read(DriftSqlType.string, data['${effectivePrefix}categoria'])!,
       descripcion: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}descripcion'])!,
+      saldoAnterior: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}saldo_anterior'])!,
+      saldoNuevo: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}saldo_nuevo'])!,
       prestamoId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}prestamo_id']),
       pagoId: attachedDatabase.typeMapping
@@ -3900,6 +3934,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
   final double monto;
   final String categoria;
   final String descripcion;
+  final double saldoAnterior;
+  final double saldoNuevo;
   final int? prestamoId;
   final int? pagoId;
   final int? cajaDestinoId;
@@ -3914,6 +3950,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
       required this.monto,
       required this.categoria,
       required this.descripcion,
+      required this.saldoAnterior,
+      required this.saldoNuevo,
       this.prestamoId,
       this.pagoId,
       this.cajaDestinoId,
@@ -3930,6 +3968,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
     map['monto'] = Variable<double>(monto);
     map['categoria'] = Variable<String>(categoria);
     map['descripcion'] = Variable<String>(descripcion);
+    map['saldo_anterior'] = Variable<double>(saldoAnterior);
+    map['saldo_nuevo'] = Variable<double>(saldoNuevo);
     if (!nullToAbsent || prestamoId != null) {
       map['prestamo_id'] = Variable<int>(prestamoId);
     }
@@ -3956,6 +3996,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
       monto: Value(monto),
       categoria: Value(categoria),
       descripcion: Value(descripcion),
+      saldoAnterior: Value(saldoAnterior),
+      saldoNuevo: Value(saldoNuevo),
       prestamoId: prestamoId == null && nullToAbsent
           ? const Value.absent()
           : Value(prestamoId),
@@ -3983,6 +4025,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
       monto: serializer.fromJson<double>(json['monto']),
       categoria: serializer.fromJson<String>(json['categoria']),
       descripcion: serializer.fromJson<String>(json['descripcion']),
+      saldoAnterior: serializer.fromJson<double>(json['saldoAnterior']),
+      saldoNuevo: serializer.fromJson<double>(json['saldoNuevo']),
       prestamoId: serializer.fromJson<int?>(json['prestamoId']),
       pagoId: serializer.fromJson<int?>(json['pagoId']),
       cajaDestinoId: serializer.fromJson<int?>(json['cajaDestinoId']),
@@ -4002,6 +4046,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
       'monto': serializer.toJson<double>(monto),
       'categoria': serializer.toJson<String>(categoria),
       'descripcion': serializer.toJson<String>(descripcion),
+      'saldoAnterior': serializer.toJson<double>(saldoAnterior),
+      'saldoNuevo': serializer.toJson<double>(saldoNuevo),
       'prestamoId': serializer.toJson<int?>(prestamoId),
       'pagoId': serializer.toJson<int?>(pagoId),
       'cajaDestinoId': serializer.toJson<int?>(cajaDestinoId),
@@ -4019,6 +4065,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
           double? monto,
           String? categoria,
           String? descripcion,
+          double? saldoAnterior,
+          double? saldoNuevo,
           Value<int?> prestamoId = const Value.absent(),
           Value<int?> pagoId = const Value.absent(),
           Value<int?> cajaDestinoId = const Value.absent(),
@@ -4033,6 +4081,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
         monto: monto ?? this.monto,
         categoria: categoria ?? this.categoria,
         descripcion: descripcion ?? this.descripcion,
+        saldoAnterior: saldoAnterior ?? this.saldoAnterior,
+        saldoNuevo: saldoNuevo ?? this.saldoNuevo,
         prestamoId: prestamoId.present ? prestamoId.value : this.prestamoId,
         pagoId: pagoId.present ? pagoId.value : this.pagoId,
         cajaDestinoId:
@@ -4052,6 +4102,11 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
       categoria: data.categoria.present ? data.categoria.value : this.categoria,
       descripcion:
           data.descripcion.present ? data.descripcion.value : this.descripcion,
+      saldoAnterior: data.saldoAnterior.present
+          ? data.saldoAnterior.value
+          : this.saldoAnterior,
+      saldoNuevo:
+          data.saldoNuevo.present ? data.saldoNuevo.value : this.saldoNuevo,
       prestamoId:
           data.prestamoId.present ? data.prestamoId.value : this.prestamoId,
       pagoId: data.pagoId.present ? data.pagoId.value : this.pagoId,
@@ -4078,6 +4133,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
           ..write('monto: $monto, ')
           ..write('categoria: $categoria, ')
           ..write('descripcion: $descripcion, ')
+          ..write('saldoAnterior: $saldoAnterior, ')
+          ..write('saldoNuevo: $saldoNuevo, ')
           ..write('prestamoId: $prestamoId, ')
           ..write('pagoId: $pagoId, ')
           ..write('cajaDestinoId: $cajaDestinoId, ')
@@ -4097,6 +4154,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
       monto,
       categoria,
       descripcion,
+      saldoAnterior,
+      saldoNuevo,
       prestamoId,
       pagoId,
       cajaDestinoId,
@@ -4114,6 +4173,8 @@ class Movimiento extends DataClass implements Insertable<Movimiento> {
           other.monto == this.monto &&
           other.categoria == this.categoria &&
           other.descripcion == this.descripcion &&
+          other.saldoAnterior == this.saldoAnterior &&
+          other.saldoNuevo == this.saldoNuevo &&
           other.prestamoId == this.prestamoId &&
           other.pagoId == this.pagoId &&
           other.cajaDestinoId == this.cajaDestinoId &&
@@ -4130,6 +4191,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
   final Value<double> monto;
   final Value<String> categoria;
   final Value<String> descripcion;
+  final Value<double> saldoAnterior;
+  final Value<double> saldoNuevo;
   final Value<int?> prestamoId;
   final Value<int?> pagoId;
   final Value<int?> cajaDestinoId;
@@ -4144,6 +4207,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
     this.monto = const Value.absent(),
     this.categoria = const Value.absent(),
     this.descripcion = const Value.absent(),
+    this.saldoAnterior = const Value.absent(),
+    this.saldoNuevo = const Value.absent(),
     this.prestamoId = const Value.absent(),
     this.pagoId = const Value.absent(),
     this.cajaDestinoId = const Value.absent(),
@@ -4159,6 +4224,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
     required double monto,
     required String categoria,
     required String descripcion,
+    required double saldoAnterior,
+    required double saldoNuevo,
     this.prestamoId = const Value.absent(),
     this.pagoId = const Value.absent(),
     this.cajaDestinoId = const Value.absent(),
@@ -4171,6 +4238,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
         monto = Value(monto),
         categoria = Value(categoria),
         descripcion = Value(descripcion),
+        saldoAnterior = Value(saldoAnterior),
+        saldoNuevo = Value(saldoNuevo),
         fecha = Value(fecha);
   static Insertable<Movimiento> custom({
     Expression<int>? id,
@@ -4180,6 +4249,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
     Expression<double>? monto,
     Expression<String>? categoria,
     Expression<String>? descripcion,
+    Expression<double>? saldoAnterior,
+    Expression<double>? saldoNuevo,
     Expression<int>? prestamoId,
     Expression<int>? pagoId,
     Expression<int>? cajaDestinoId,
@@ -4195,6 +4266,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
       if (monto != null) 'monto': monto,
       if (categoria != null) 'categoria': categoria,
       if (descripcion != null) 'descripcion': descripcion,
+      if (saldoAnterior != null) 'saldo_anterior': saldoAnterior,
+      if (saldoNuevo != null) 'saldo_nuevo': saldoNuevo,
       if (prestamoId != null) 'prestamo_id': prestamoId,
       if (pagoId != null) 'pago_id': pagoId,
       if (cajaDestinoId != null) 'caja_destino_id': cajaDestinoId,
@@ -4212,6 +4285,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
       Value<double>? monto,
       Value<String>? categoria,
       Value<String>? descripcion,
+      Value<double>? saldoAnterior,
+      Value<double>? saldoNuevo,
       Value<int?>? prestamoId,
       Value<int?>? pagoId,
       Value<int?>? cajaDestinoId,
@@ -4226,6 +4301,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
       monto: monto ?? this.monto,
       categoria: categoria ?? this.categoria,
       descripcion: descripcion ?? this.descripcion,
+      saldoAnterior: saldoAnterior ?? this.saldoAnterior,
+      saldoNuevo: saldoNuevo ?? this.saldoNuevo,
       prestamoId: prestamoId ?? this.prestamoId,
       pagoId: pagoId ?? this.pagoId,
       cajaDestinoId: cajaDestinoId ?? this.cajaDestinoId,
@@ -4259,6 +4336,12 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
     if (descripcion.present) {
       map['descripcion'] = Variable<String>(descripcion.value);
     }
+    if (saldoAnterior.present) {
+      map['saldo_anterior'] = Variable<double>(saldoAnterior.value);
+    }
+    if (saldoNuevo.present) {
+      map['saldo_nuevo'] = Variable<double>(saldoNuevo.value);
+    }
     if (prestamoId.present) {
       map['prestamo_id'] = Variable<int>(prestamoId.value);
     }
@@ -4290,6 +4373,8 @@ class MovimientosCompanion extends UpdateCompanion<Movimiento> {
           ..write('monto: $monto, ')
           ..write('categoria: $categoria, ')
           ..write('descripcion: $descripcion, ')
+          ..write('saldoAnterior: $saldoAnterior, ')
+          ..write('saldoNuevo: $saldoNuevo, ')
           ..write('prestamoId: $prestamoId, ')
           ..write('pagoId: $pagoId, ')
           ..write('cajaDestinoId: $cajaDestinoId, ')
@@ -7433,6 +7518,8 @@ typedef $$MovimientosTableCreateCompanionBuilder = MovimientosCompanion
   required double monto,
   required String categoria,
   required String descripcion,
+  required double saldoAnterior,
+  required double saldoNuevo,
   Value<int?> prestamoId,
   Value<int?> pagoId,
   Value<int?> cajaDestinoId,
@@ -7449,6 +7536,8 @@ typedef $$MovimientosTableUpdateCompanionBuilder = MovimientosCompanion
   Value<double> monto,
   Value<String> categoria,
   Value<String> descripcion,
+  Value<double> saldoAnterior,
+  Value<double> saldoNuevo,
   Value<int?> prestamoId,
   Value<int?> pagoId,
   Value<int?> cajaDestinoId,
@@ -7546,6 +7635,12 @@ class $$MovimientosTableFilterComposer
 
   ColumnFilters<String> get descripcion => $composableBuilder(
       column: $table.descripcion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get saldoAnterior => $composableBuilder(
+      column: $table.saldoAnterior, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get saldoNuevo => $composableBuilder(
+      column: $table.saldoNuevo, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get fecha => $composableBuilder(
       column: $table.fecha, builder: (column) => ColumnFilters(column));
@@ -7663,6 +7758,13 @@ class $$MovimientosTableOrderingComposer
 
   ColumnOrderings<String> get descripcion => $composableBuilder(
       column: $table.descripcion, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get saldoAnterior => $composableBuilder(
+      column: $table.saldoAnterior,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get saldoNuevo => $composableBuilder(
+      column: $table.saldoNuevo, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get fecha => $composableBuilder(
       column: $table.fecha, builder: (column) => ColumnOrderings(column));
@@ -7782,6 +7884,12 @@ class $$MovimientosTableAnnotationComposer
 
   GeneratedColumn<String> get descripcion => $composableBuilder(
       column: $table.descripcion, builder: (column) => column);
+
+  GeneratedColumn<double> get saldoAnterior => $composableBuilder(
+      column: $table.saldoAnterior, builder: (column) => column);
+
+  GeneratedColumn<double> get saldoNuevo => $composableBuilder(
+      column: $table.saldoNuevo, builder: (column) => column);
 
   GeneratedColumn<DateTime> get fecha =>
       $composableBuilder(column: $table.fecha, builder: (column) => column);
@@ -7904,6 +8012,8 @@ class $$MovimientosTableTableManager extends RootTableManager<
             Value<double> monto = const Value.absent(),
             Value<String> categoria = const Value.absent(),
             Value<String> descripcion = const Value.absent(),
+            Value<double> saldoAnterior = const Value.absent(),
+            Value<double> saldoNuevo = const Value.absent(),
             Value<int?> prestamoId = const Value.absent(),
             Value<int?> pagoId = const Value.absent(),
             Value<int?> cajaDestinoId = const Value.absent(),
@@ -7919,6 +8029,8 @@ class $$MovimientosTableTableManager extends RootTableManager<
             monto: monto,
             categoria: categoria,
             descripcion: descripcion,
+            saldoAnterior: saldoAnterior,
+            saldoNuevo: saldoNuevo,
             prestamoId: prestamoId,
             pagoId: pagoId,
             cajaDestinoId: cajaDestinoId,
@@ -7934,6 +8046,8 @@ class $$MovimientosTableTableManager extends RootTableManager<
             required double monto,
             required String categoria,
             required String descripcion,
+            required double saldoAnterior,
+            required double saldoNuevo,
             Value<int?> prestamoId = const Value.absent(),
             Value<int?> pagoId = const Value.absent(),
             Value<int?> cajaDestinoId = const Value.absent(),
@@ -7949,6 +8063,8 @@ class $$MovimientosTableTableManager extends RootTableManager<
             monto: monto,
             categoria: categoria,
             descripcion: descripcion,
+            saldoAnterior: saldoAnterior,
+            saldoNuevo: saldoNuevo,
             prestamoId: prestamoId,
             pagoId: pagoId,
             cajaDestinoId: cajaDestinoId,

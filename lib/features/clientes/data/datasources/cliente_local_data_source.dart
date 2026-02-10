@@ -5,6 +5,7 @@ import '../../../../core/database/database.dart';
 /// Data Source local para Clientes - Capa de Datos
 /// 
 /// Maneja todas las operaciones de base de datos para clientes usando Drift.
+/// ✅ CORREGIDO: Búsquedas actualizadas para usar nombres+apellidos y numeroDocumento
 class ClienteLocalDataSource {
   final AppDatabase database;
 
@@ -32,6 +33,7 @@ class ClienteLocalDataSource {
   }
 
   /// Busca clientes por nombre o CI
+  /// ✅ CORREGIDO: Busca en nombres, apellidos y numeroDocumento
   /// 
   /// La búsqueda es case-insensitive y busca coincidencias parciales
   Future<List<ClienteModel>> searchClientes(String query) async {
@@ -39,8 +41,9 @@ class ClienteLocalDataSource {
     
     final clientes = await (database.select(database.clientes)
           ..where((tbl) =>
-              tbl.nombre.lower().like(searchQuery) |
-              tbl.ci.like(searchQuery)))
+              tbl.nombres.lower().like(searchQuery) |
+              tbl.apellidos.lower().like(searchQuery) |
+              tbl.numeroDocumento.like(searchQuery))) // ✅ Buscar en numeroDocumento
         .get();
 
     return clientes.map((data) => ClienteModel.fromDrift(data)).toList();
@@ -90,13 +93,14 @@ class ClienteLocalDataSource {
   }
 
   /// Verifica si existe un cliente con el CI especificado
+  /// ✅ CORREGIDO: Busca en numeroDocumento en lugar de ci
   /// 
   /// Parameters:
   ///   - ci: CI a buscar
   ///   - excludeId: ID a excluir de la búsqueda (opcional)
   Future<bool> existeClienteConCI(String ci, {int? excludeId}) async {
     var query = database.select(database.clientes)
-      ..where((tbl) => tbl.ci.equals(ci));
+      ..where((tbl) => tbl.numeroDocumento.equals(ci)); // ✅ numeroDocumento
 
     if (excludeId != null) {
       query = query..where((tbl) => tbl.id.equals(excludeId).not());
@@ -125,9 +129,13 @@ class ClienteLocalDataSource {
   }
 
   /// Obtiene clientes ordenados por nombre
+  /// ✅ CORREGIDO: Ordena por nombres y apellidos
   Future<List<ClienteModel>> getClientesOrdenados() async {
     final clientes = await (database.select(database.clientes)
-          ..orderBy([(tbl) => OrderingTerm.asc(tbl.nombre)]))
+          ..orderBy([
+            (tbl) => OrderingTerm.asc(tbl.nombres),
+            (tbl) => OrderingTerm.asc(tbl.apellidos),
+          ]))
         .get();
 
     return clientes.map((data) => ClienteModel.fromDrift(data)).toList();

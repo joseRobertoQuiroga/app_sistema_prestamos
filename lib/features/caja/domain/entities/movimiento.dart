@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 /// Puede ser ingreso, egreso o transferencia.
 class Movimiento extends Equatable {
   final int? id;
+  final String? codigo; // Nuevo campo
   final int cajaId;
   final String tipo; // INGRESO, EGRESO, TRANSFERENCIA
   final String categoria; // DESEMBOLSO, PAGO, GASTO, TRANSFERENCIA, OTRO
@@ -22,6 +23,7 @@ class Movimiento extends Equatable {
 
   const Movimiento({
     this.id,
+    this.codigo,
     required this.cajaId,
     required this.tipo,
     required this.categoria,
@@ -72,6 +74,7 @@ class Movimiento extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        codigo,
         cajaId,
         tipo,
         categoria,
@@ -90,6 +93,7 @@ class Movimiento extends Equatable {
   /// Crea una copia del movimiento con campos modificados
   Movimiento copyWith({
     int? id,
+    String? codigo,
     int? cajaId,
     String? tipo,
     String? categoria,
@@ -106,6 +110,7 @@ class Movimiento extends Equatable {
   }) {
     return Movimiento(
       id: id ?? this.id,
+      codigo: codigo ?? this.codigo,
       cajaId: cajaId ?? this.cajaId,
       tipo: tipo ?? this.tipo,
       categoria: categoria ?? this.categoria,

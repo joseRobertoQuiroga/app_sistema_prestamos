@@ -3,6 +3,7 @@ import '../../domain/entities/dashboard_entities.dart';
 import '../../../../core/database/database.dart';
 
 /// Data Source del Dashboard
+/// ✅ CORREGIDO: Usa saldoActual y concatena nombres+apellidos
 class DashboardLocalDataSource {
   final AppDatabase database;
 
@@ -58,9 +59,10 @@ class DashboardLocalDataSource {
     }
 
     // Calcular saldo total de cajas
+    /// ✅ CORREGIDO: Usar saldoActual en lugar de saldo
     double saldoTotalCajas = 0;
     for (final caja in cajas) {
-      saldoTotalCajas += caja.saldo;
+      saldoTotalCajas += caja.saldoActual;
     }
 
     // Calcular movimientos del mes actual
@@ -160,16 +162,19 @@ class DashboardLocalDataSource {
     }
 
     // Alertas de saldo bajo en cajas
+    /// ✅ CORREGIDO: Usar saldoActual
     final cajas = await (database.select(database.cajas)
-          ..where((tbl) => tbl.activa.equals(true) & tbl.saldo.isSmallerThanValue(1000)))
+          ..where((tbl) => 
+              tbl.activa.equals(true) & 
+              tbl.saldoActual.isSmallerThanValue(1000)))
         .get();
 
     for (final caja in cajas) {
       alertas.add(DashboardAlerta(
         tipo: 'BAJO_SALDO',
-        severidad: caja.saldo < 500 ? 'ALTA' : 'MEDIA',
+        severidad: caja.saldoActual < 500 ? 'ALTA' : 'MEDIA',
         titulo: 'Saldo bajo en caja',
-        mensaje: '${caja.nombre} tiene saldo bajo: Bs. ${caja.saldo}',
+        mensaje: '${caja.nombre} tiene saldo bajo: Bs. ${caja.saldoActual.toStringAsFixed(2)}',
         fecha: hoy,
       ));
     }
@@ -178,6 +183,7 @@ class DashboardLocalDataSource {
   }
 
   /// Obtiene próximos vencimientos
+  /// ✅ CORREGIDO: Concatena nombres y apellidos del cliente
   Future<List<ProximoVencimiento>> getProximosVencimientos({int dias = 30}) async {
     final hoy = DateTime.now();
     final fechaLimite = hoy.add(Duration(days: dias));
@@ -212,7 +218,8 @@ class DashboardLocalDataSource {
         cuotaId: cuota.id,
         prestamoId: prestamo.id,
         codigoPrestamo: prestamo.codigo,
-        nombreCliente: cliente.nombre,
+        // ✅ CORREGIDO: Concatenar nombres + apellidos
+        nombreCliente: '${cliente.nombres} ${cliente.apellidos}'.trim(),
         numeroCuota: cuota.numeroCuota,
         fechaVencimiento: cuota.fechaVencimiento,
         montoCuota: cuota.montoCuota,
@@ -224,6 +231,7 @@ class DashboardLocalDataSource {
   }
 
   /// Obtiene préstamos en mora
+  /// ✅ CORREGIDO: Concatena nombres y apellidos
   Future<List<Map<String, dynamic>>> getPrestamosEnMora() async {
     final query = database.select(database.prestamos).join([
       innerJoin(
@@ -243,7 +251,8 @@ class DashboardLocalDataSource {
       return {
         'prestamoId': prestamo.id,
         'codigo': prestamo.codigo,
-        'clienteNombre': cliente.nombre,
+        // ✅ CORREGIDO: Concatenar nombres + apellidos
+        'clienteNombre': '${cliente.nombres} ${cliente.apellidos}'.trim(),
         'monto': prestamo.montoOriginal,
         'saldoPendiente': prestamo.saldoPendiente,
         'fechaInicio': prestamo.fechaInicio,

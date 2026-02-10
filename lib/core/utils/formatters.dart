@@ -1,5 +1,5 @@
 import 'package:intl/intl.dart';
-import '../config/constants/app_constants.dart';
+import '../constants/app_constants.dart';
 
 /// Utilidades para formatear valores
 class Formatters {
@@ -279,5 +279,43 @@ class Formatters {
     if (text.length <= maxLength) return text;
     
     return text.substring(0, maxLength - suffix.length) + suffix;
+  }
+
+  /// Formatea un porcentaje con decimales personalizados
+  /// 
+  /// Ejemplo: `12.5` -> `12.50%`
+  static String formatPercentage(double value, {int decimals = 2}) {
+    return '${value.toStringAsFixed(decimals)}%';
+  }
+
+  /// Formatea una fecha de forma relativa (hace X tiempo)
+  /// 
+  /// Ejemplo: `Hace 3 días`, `Hace 2 semanas`, `Hace 1 mes`
+  static String formatRelativeDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        if (difference.inMinutes == 0) {
+          return 'Justo ahora';
+        }
+        return 'Hace ${difference.inMinutes} ${difference.inMinutes == 1 ? "minuto" : "minutos"}';
+      }
+      return 'Hace ${difference.inHours} ${difference.inHours == 1 ? "hora" : "horas"}';
+    } else if (difference.inDays == 1) {
+      return 'Ayer';
+    } else if (difference.inDays < 7) {
+      return 'Hace ${difference.inDays} ${difference.inDays == 1 ? "día" : "días"}';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return 'Hace $weeks ${weeks == 1 ? "semana" : "semanas"}';
+    } else if (difference.inDays < 365) {
+      final months = (difference.inDays / 30).floor();
+      return 'Hace $months ${months == 1 ? "mes" : "meses"}';
+    } else {
+      final years = (difference.inDays / 365).floor();
+      return 'Hace $years ${years == 1 ? "año" : "años"}';
+    }
   }
 }

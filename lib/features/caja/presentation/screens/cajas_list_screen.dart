@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/caja_provider.dart';
 import '../../domain/entities/caja.dart';
+import 'caja_form_screen.dart'; // ✅ IMPORT AGREGADO
+import 'caja_detail_screen.dart'; // ✅ IMPORT AGREGADO
 import '../../../../core/utils/formatters.dart';
-import '../../../../shared/presentation/widgets/app_drawer.dart';
+import '../../../../presentation/widgets/app_drawer.dart';
 
 /// Pantalla de lista de cajas
 class CajasListScreen extends ConsumerWidget {
@@ -29,7 +32,6 @@ class CajasListScreen extends ConsumerWidget {
       ),
       drawer: const AppDrawer(),
       body: Column(
-
         children: [
           // Saldo total
           saldoTotalAsync.when(
@@ -79,6 +81,13 @@ class CajasListScreen extends ConsumerWidget {
                           'No hay cajas registradas',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Presiona el botón + para crear una',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
                       ],
                     ),
                   );
@@ -87,89 +96,184 @@ class CajasListScreen extends ConsumerWidget {
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(cajasListProvider);
+                    ref.invalidate(saldoTotalProvider);
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: cajas.length,
                     itemBuilder: (context, index) {
-                      return _CajaCard(caja: cajas[index]);
+                      return _CajaCard(
+                        caja: cajas[index],
+                        onTap: () => _navegarADetalle(context, cajas[index]),
+                      );
                     },
                   ),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(child: Text('Error: $error')),
+              error: (error, _) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $error'),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => ref.invalidate(cajasListProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showNuevaCajaDialog(context, ref),
+        onPressed: () => _navegarANuevaCaja(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('Nueva Caja'),
       ),
     );
   }
 
-  void _showNuevaCajaDialog(BuildContext context, WidgetRef ref) {
-    // TODO: Implementar diálogo o navegar a formulario
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Formulario de nueva caja pendiente')),
+  // ✅ MÉTODO CORREGIDO - Navega al formulario SIN const
+  void _navegarANuevaCaja(BuildContext context, WidgetRef ref) async {
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CajaFormScreen(), // ✅ SIN const
+      ),
+    );
+
+    // Si se creó la caja, refrescar lista
+    if (resultado == true) {
+      ref.invalidate(cajasListProvider);
+      ref.invalidate(saldoTotalProvider);
+    }
+  }
+
+  // ✅ MÉTODO CORREGIDO - Navega al detalle
+  void _navegarADetalle(BuildContext context, Caja caja) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CajaDetailScreen(cajaId: caja.id!),
+      ),
     );
   }
 }
 
 class _CajaCard extends StatelessWidget {
   final Caja caja;
+  final VoidCallback onTap;
 
-  const _CajaCard({required this.caja});
+  const _CajaCard({
+    required this.caja,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: caja.activa
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Icon(
-            _getIcono(),
-            color: caja.activa
-                ? Theme.of(context).colorScheme.onPrimaryContainer
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Icono
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: caja.activa
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      _getIcono(),
+                      color: caja.activa
+                          ? Theme.of(context).colorScheme.onPrimaryContainer
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  
+                  // Nombre y tipo
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          caja.nombreCompleto,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          caja.tipo,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        if (caja.infoCuenta != null)
+                          Text(
+                            caja.infoCuenta!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Saldo
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        Formatters.formatCurrency(caja.saldo),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      if (!caja.activa)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'INACTIVA',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        title: Text(
-          caja.nombreCompleto,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (caja.infoCuenta != null) Text(caja.infoCuenta!),
-            Text('Tipo: ${caja.tipo}'),
-            if (!caja.activa)
-              Text(
-                'INACTIVA',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-          ],
-        ),
-        trailing: Text(
-          Formatters.formatCurrency(caja.saldo),
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        isThreeLine: true,
-        onTap: () {
-          _showCajaDetail(context, caja);
-        },
       ),
     );
   }
@@ -183,12 +287,5 @@ class _CajaCard extends StatelessWidget {
       default:
         return Icons.account_balance_wallet;
     }
-  }
-
-  void _showCajaDetail(BuildContext context, Caja caja) {
-    // TODO: Navegar a detalle de caja
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Detalle de ${caja.nombre} pendiente')),
-    );
   }
 }

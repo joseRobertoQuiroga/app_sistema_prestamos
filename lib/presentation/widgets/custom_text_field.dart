@@ -1,11 +1,13 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/theme/app_theme.dart';
 
-/// Campo de texto personalizado con validaciones y estilos consistentes
+/// Campo de texto profesional con bordes refinados y estados de focus elegantes
 class CustomTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
-  final String? hint;
+  final String? hintText;
   final String? helperText;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
@@ -15,7 +17,7 @@ class CustomTextField extends StatelessWidget {
   final int? maxLines;
   final int? minLines;
   final int? maxLength;
-  final Widget? prefixIcon;
+  final dynamic prefixIcon;
   final Widget? suffixIcon;
   final String? prefixText;
   final String? suffixText;
@@ -35,7 +37,7 @@ class CustomTextField extends StatelessWidget {
     super.key,
     this.controller,
     this.label,
-    this.hint,
+    this.hintText,
     this.helperText,
     this.validator,
     this.keyboardType,
@@ -65,84 +67,92 @@ class CustomTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return TextFormField(
-      controller: controller,
-      initialValue: initialValue,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        helperText: helperText,
-        prefixIcon: prefixIcon,
-        suffixIcon: suffixIcon,
-        prefixText: prefixText,
-        suffixText: suffixText,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outline,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (label != null) ...[
+          Text(
+            label!,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.grey[300] : Colors.grey[700],
+            ),
           ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.5),
+          const SizedBox(height: 8),
+        ],
+        TextFormField(
+          controller: controller,
+          initialValue: initialValue,
+          decoration: InputDecoration(
+            hintText: hintText,
+            helperText: helperText,
+            prefixIcon: prefixIcon != null
+                ? (prefixIcon is IconData
+                    ? Icon(prefixIcon as IconData, size: 22, color: isDark ? AppTheme.primaryDark : AppTheme.primaryBrand)
+                    : prefixIcon as Widget)
+                : null,
+            suffixIcon: suffixIcon,
+            prefixText: prefixText,
+            suffixText: suffixText,
+            filled: true,
+            fillColor: isDark 
+                ? theme.cardColor.withOpacity(0.5) 
+                : Colors.white,
+            contentPadding: contentPadding ??
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade300,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade300,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: theme.colorScheme.primary,
+                width: 2,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.error),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+              ),
+            ),
           ),
+          validator: validator,
+          keyboardType: keyboardType,
+          obscureText: obscureText,
+          enabled: enabled,
+          readOnly: readOnly,
+          maxLines: maxLines,
+          minLines: minLines,
+          maxLength: maxLength,
+          onChanged: onChanged,
+          onTap: onTap,
+          onFieldSubmitted: onFieldSubmitted,
+          focusNode: focusNode,
+          textInputAction: textInputAction,
+          inputFormatters: inputFormatters,
+          autofocus: autofocus,
+          autovalidateMode: autovalidateMode ?? AutovalidateMode.onUserInteraction,
+          textCapitalization: textCapitalization,
+          style: theme.textTheme.bodyLarge,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.primary,
-            width: 2,
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.error,
-          ),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.error,
-            width: 2,
-          ),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.3),
-          ),
-        ),
-        filled: true,
-        fillColor: enabled
-            ? theme.colorScheme.surface
-            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        contentPadding: contentPadding ??
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        counterText: maxLength != null ? null : '',
-      ),
-      validator: validator,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      enabled: enabled,
-      readOnly: readOnly,
-      maxLines: maxLines,
-      minLines: minLines,
-      maxLength: maxLength,
-      onChanged: onChanged,
-      onTap: onTap,
-      onFieldSubmitted: onFieldSubmitted,
-      focusNode: focusNode,
-      textInputAction: textInputAction,
-      inputFormatters: inputFormatters,
-      autofocus: autofocus,
-      autovalidateMode: autovalidateMode ?? AutovalidateMode.onUserInteraction,
-      textCapitalization: textCapitalization,
-      style: theme.textTheme.bodyLarge?.copyWith(
-        color: enabled ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
-      ),
+      ],
     );
   }
 }
@@ -151,7 +161,7 @@ class CustomTextField extends StatelessWidget {
 class CurrencyTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
-  final String? hint;
+  final String? hintText;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
   final bool enabled;
@@ -161,7 +171,7 @@ class CurrencyTextField extends StatelessWidget {
     super.key,
     this.controller,
     this.label,
-    this.hint,
+    this.hintText,
     this.validator,
     this.onChanged,
     this.enabled = true,
@@ -173,12 +183,18 @@ class CurrencyTextField extends StatelessWidget {
     return CustomTextField(
       controller: controller,
       label: label,
-      hint: hint,
+      hintText: hintText,
       validator: validator,
       onChanged: onChanged,
       enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      prefixText: '$currencySymbol ',
+      prefixIcon: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          currencySymbol,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
       ],
@@ -190,7 +206,7 @@ class CurrencyTextField extends StatelessWidget {
 class PercentageTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
-  final String? hint;
+  final String? hintText;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
   final bool enabled;
@@ -199,7 +215,7 @@ class PercentageTextField extends StatelessWidget {
     super.key,
     this.controller,
     this.label,
-    this.hint,
+    this.hintText,
     this.validator,
     this.onChanged,
     this.enabled = true,
@@ -210,12 +226,18 @@ class PercentageTextField extends StatelessWidget {
     return CustomTextField(
       controller: controller,
       label: label,
-      hint: hint,
+      hintText: hintText,
       validator: validator,
       onChanged: onChanged,
       enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      suffixText: '%',
+      suffixIcon: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          '%',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
       ],
@@ -227,7 +249,7 @@ class PercentageTextField extends StatelessWidget {
 class DateTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
-  final String? hint;
+  final String? hintText;
   final String? Function(String?)? validator;
   final void Function(DateTime?)? onDateSelected;
   final bool enabled;
@@ -239,7 +261,7 @@ class DateTextField extends StatelessWidget {
     super.key,
     this.controller,
     this.label,
-    this.hint,
+    this.hintText,
     this.validator,
     this.onDateSelected,
     this.enabled = true,
@@ -269,88 +291,12 @@ class DateTextField extends StatelessWidget {
     return CustomTextField(
       controller: controller,
       label: label,
-      hint: hint ?? 'dd/MM/yyyy',
+      hintText: hintText ?? 'dd/MM/yyyy',
       validator: validator,
       enabled: enabled,
       readOnly: true,
       onTap: enabled ? () => _selectDate(context) : null,
-      suffixIcon: const Icon(Icons.calendar_today),
-    );
-  }
-}
-
-/// Campo de texto para teléfonos
-class PhoneTextField extends StatelessWidget {
-  final TextEditingController? controller;
-  final String? label;
-  final String? hint;
-  final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
-  final bool enabled;
-
-  const PhoneTextField({
-    super.key,
-    this.controller,
-    this.label,
-    this.hint,
-    this.validator,
-    this.onChanged,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomTextField(
-      controller: controller,
-      label: label,
-      hint: hint,
-      validator: validator,
-      onChanged: onChanged,
-      enabled: enabled,
-      keyboardType: TextInputType.phone,
-      prefixIcon: const Icon(Icons.phone),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(15),
-      ],
-    );
-  }
-}
-
-/// Campo de texto para documentos (CI)
-class DocumentTextField extends StatelessWidget {
-  final TextEditingController? controller;
-  final String? label;
-  final String? hint;
-  final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
-  final bool enabled;
-
-  const DocumentTextField({
-    super.key,
-    this.controller,
-    this.label,
-    this.hint,
-    this.validator,
-    this.onChanged,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomTextField(
-      controller: controller,
-      label: label,
-      hint: hint,
-      validator: validator,
-      onChanged: onChanged,
-      enabled: enabled,
-      keyboardType: TextInputType.number,
-      prefixIcon: const Icon(Icons.badge),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(15),
-      ],
+      suffixIcon: const Icon(Icons.calendar_month_rounded),
     );
   }
 }
@@ -358,7 +304,7 @@ class DocumentTextField extends StatelessWidget {
 /// Campo de texto para búsqueda
 class SearchTextField extends StatelessWidget {
   final TextEditingController? controller;
-  final String? hint;
+  final String? hintText;
   final void Function(String)? onChanged;
   final void Function()? onClear;
   final bool autofocus;
@@ -366,7 +312,7 @@ class SearchTextField extends StatelessWidget {
   const SearchTextField({
     super.key,
     this.controller,
-    this.hint,
+    this.hintText,
     this.onChanged,
     this.onClear,
     this.autofocus = false,
@@ -375,44 +321,37 @@ class SearchTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return TextField(
       controller: controller,
       decoration: InputDecoration(
-        hintText: hint ?? 'Buscar...',
-        prefixIcon: const Icon(Icons.search),
+        hintText: hintText ?? 'Buscar...',
+        prefixIcon: const Icon(Icons.search_rounded),
         suffixIcon: controller?.text.isNotEmpty ?? false
             ? IconButton(
-                icon: const Icon(Icons.clear),
+                icon: const Icon(Icons.close_rounded),
                 onPressed: () {
                   controller?.clear();
                   onClear?.call();
                 },
               )
             : null,
+        filled: true,
+        fillColor: isDark ? theme.cardColor : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: theme.colorScheme.outline,
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.5),
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200,
           ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: theme.colorScheme.primary,
-            width: 2,
-          ),
-        ),
-        filled: true,
-        fillColor: theme.colorScheme.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
       onChanged: onChanged,
       autofocus: autofocus,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/movimiento.dart';
+import '../../domain/entities/resumen_caja.dart';
 import '../providers/caja_provider.dart';
 import '../widgets/movimiento_card.dart';
 import 'caja_form_screen.dart';

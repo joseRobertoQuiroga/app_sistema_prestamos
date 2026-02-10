@@ -6,12 +6,8 @@ import '../../domain/usecases/update_cliente.dart';
 import '../../domain/usecases/delete_cliente.dart';
 import '../../data/datasources/cliente_local_data_source.dart';
 import '../../data/repositories/cliente_repository_impl.dart';
-import '../../../../core/database/database.dart';
+import '../../../../core/database/database_provider.dart';
 
-// Provider para la base de datos
-final databaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
-});
 
 // Provider para el data source
 final clienteLocalDataSourceProvider = Provider<ClienteLocalDataSource>((ref) {
@@ -59,6 +55,17 @@ final updateClienteUseCaseProvider = Provider<UpdateCliente>((ref) {
 final deleteClienteUseCaseProvider = Provider<DeleteCliente>((ref) {
   final repository = ref.watch(clienteRepositoryProvider);
   return DeleteCliente(repository);
+});
+
+// ✅ NUEVO: Provider para obtener clientes activos como AsyncValue
+final clientesActivosProvider = FutureProvider<List<Cliente>>((ref) async {
+  final useCase = ref.watch(getClientesActivosUseCaseProvider);
+  final result = await useCase();
+  
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (clientes) => clientes,
+  );
 });
 
 // Estado de la lista de clientes

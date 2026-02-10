@@ -49,3 +49,8 @@ class PermissionFailure extends Failure {
 class UnknownFailure extends Failure {
   const UnknownFailure(super.message);
 }
+
+/// Fallo de cálculo
+class CalculationFailure extends Failure {
+  const CalculationFailure(super.message);
+}

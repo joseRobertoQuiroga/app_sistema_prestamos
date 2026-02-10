@@ -1,4 +1,4 @@
-import '../config/constants/app_constants.dart';
+import '../constants/app_constants.dart';
 
 /// Utilidades para validar campos de formularios
 class Validators {
@@ -372,13 +372,7 @@ class Validators {
   }
 
   /// Combina múltiples validadores
-  static String? combine(String? value, List<String? Function(String?)> validators) {
-    for (final validator in validators) {
-      final error = validator(value);
-      if (error != null) return error;
-    }
-    return null;
-  }
+
 
   /// Valida un porcentaje (0-100)
   static String? percentage(String? value, {String? fieldName}) {
@@ -426,5 +420,47 @@ class Validators {
     }
 
     return null;
+  }
+
+  /// Valida un plazo en meses (alias de term para compatibilidad)
+  /// 
+  /// Ejemplo: Valida que el plazo esté entre 1 y 360 meses
+  static String? termMonths(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'El plazo es requerido';
+    }
+
+    final term = int.tryParse(value);
+
+    if (term == null) {
+      return 'Ingrese un plazo válido';
+    }
+
+    // Usar las constantes de AppConstants si existen, o valores por defecto
+    const minPlazo = 1;  // AppConstants.minPlazoMeses
+    const maxPlazo = 360; // AppConstants.maxPlazoMeses
+
+    if (term < minPlazo) {
+      return 'El plazo debe ser al menos $minPlazo ${minPlazo == 1 ? "mes" : "meses"}';
+    }
+
+    if (term > maxPlazo) {
+      return 'El plazo no puede exceder $maxPlazo meses';
+    }
+
+    return null;
+  }
+
+  /// Combina múltiples validadores
+  static String? Function(String?) combine(List<String? Function(String?)> validators) {
+    return (String? value) {
+      for (final validator in validators) {
+        final result = validator(value);
+        if (result != null) {
+          return result;
+        }
+      }
+      return null;
+    };
   }
 }

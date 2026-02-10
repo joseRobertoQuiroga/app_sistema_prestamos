@@ -1,0 +1,242 @@
+﻿Analyzing prestamos_app...                                      
+
+  error - The named parameter 'prestamocodigo' is required, but there's no corresponding argument - lib\config\router\app_router.dart:140:24 - missing_required_argument
+  error - The named parameter 'saldoPendiente' is required, but there's no corresponding argument - lib\config\router\app_router.dart:140:24 - missing_required_argument
+warning - Unnecessary cast - lib\features\caja\data\datasources\caja_local_data_source.dart:42:12 - unnecessary_cast
+  error - The operator '+' isn't defined for the type 'FutureOr<double>' - lib\features\caja\data\datasources\caja_local_data_source.dart:328:47 - undefined_operator
+warning - The left operand can't be null, so the right operand is never executed - lib\features\caja\data\models\caja_model.dart:46:45 - dead_null_aware_expression
+  error - The parameter 'fechaRegistro' can't have a value of 'null' because of its type, but the implicit default value is 'null' - lib\features\caja\data\models\caja_model.dart:126:11 - missing_default_value_for_parameter
+warning - The left operand can't be null, so the right operand is never executed - lib\features\caja\data\models\caja_model.dart:176:45 - dead_null_aware_expression
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:34:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:34:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:47:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:47:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:51:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:51:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:55:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:55:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:68:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:68:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:72:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:72:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:85:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:85:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:106:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:106:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:110:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:110:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:114:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:114:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:141:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:141:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:145:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:145:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:149:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:149:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:190:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:190:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:194:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:194:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:198:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:198:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:202:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:202:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:236:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:236:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:252:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:252:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:256:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:256:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:284:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\domain\usecases\caja_usecases.dart:284:19 - prefer_const_constructors
+  error - The name 'ResumenCaja' isn't a type, so it can't be used as a type argument - lib\features\caja\presentation\providers\caja_provider.dart:135:51 - non_type_as_type_argument
+  error - Undefined class 'ResumenCaja' - lib\features\caja\presentation\screens\caja_detail_screen.dart:241:50 - undefined_class
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\caja_detail_screen.dart:325:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\caja_detail_screen.dart:454:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\caja_detail_screen.dart:493:22 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\features\caja\presentation\screens\caja_form_screen.dart:73:21 - use_build_context_synchronously
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\caja_form_screen.dart:329:15 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\cajas_list_screen.dart:75:81 - deprecated_member_use
+warning - Unused import: '../../domain/entities/caja.dart' - lib\features\caja\presentation\screens\registrar_egreso_screen.dart:4:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\registrar_egreso_screen.dart:133:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\registrar_egreso_screen.dart:170:49 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\registrar_egreso_screen.dart:222:19 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\registrar_egreso_screen.dart:286:57 - deprecated_member_use
+warning - Unused import: '../../domain/entities/caja.dart' - lib\features\caja\presentation\screens\registrar_ingreso_screen.dart:4:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\registrar_ingreso_screen.dart:130:39 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\registrar_ingreso_screen.dart:185:19 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\registrar_ingreso_screen.dart:248:57 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\transferencia_screen.dart:302:7 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\transferencia_screen.dart:308:31 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\transferencia_screen.dart:354:7 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\transferencia_screen.dart:360:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\transferencia_screen.dart:404:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:33:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:87:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:88:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:91:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:92:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:98:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:99:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\caja_card.dart:218:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\movimiento_card.dart:37:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\movimiento_card.dart:202:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\movimiento_card.dart:204:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\movimiento_card.dart:231:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\widgets\movimiento_card.dart:233:61 - deprecated_member_use
+warning - The left operand can't be null, so the right operand is never executed - lib\features\clientes\data\models\cliente_model.dart:80:31 - dead_null_aware_expression
+warning - The left operand can't be null, so the right operand is never executed - lib\features\clientes\data\models\cliente_model.dart:100:31 - dead_null_aware_expression
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\create_cliente.dart:52:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\create_cliente.dart:56:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\create_cliente.dart:61:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\create_cliente.dart:65:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\create_cliente.dart:72:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\create_cliente.dart:80:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\delete_cliente.dart:28:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\delete_cliente.dart:28:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\get_clientes.dart:42:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\get_clientes.dart:42:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:26:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:26:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:72:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:76:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:81:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:85:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:92:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\clientes\domain\usecases\update_cliente.dart:100:16 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\clientes\presentation\screens\clientes_list_screen.dart:128:69 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\clientes\presentation\screens\clientes_list_screen.dart:145:75 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\clientes\presentation\widgets\cliente_search_bar.dart:88:48 - deprecated_member_use
+warning - The value of the local variable 'cuotas' isn't used - lib\features\dashboard\data\datasources\dashboard_local_data_source.dart:16:11 - unused_local_variable
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\data\repositories\dashboard_repository_impl.dart:71:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\data\repositories\dashboard_repository_impl.dart:91:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\domain\usecases\dashboard_usecases.dart:33:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\domain\usecases\dashboard_usecases.dart:33:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\domain\usecases\dashboard_usecases.dart:66:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\domain\usecases\dashboard_usecases.dart:66:19 - prefer_const_constructors
+  error - The argument type 'List<ProximoVencimiento>' can't be assigned to the parameter type 'List<Cuota>'.  - lib\features\dashboard\presentation\screens\dashboard_screen.dart:94:33 - argument_type_not_assignable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\screens\dashboard_screen.dart:294:30 - deprecated_member_use
+warning - Unused import: '../../../../core/utils/formatters.dart' - lib\features\dashboard\presentation\widgets\alertas_widget.dart:3:8 - unused_import
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\widgets\alertas_widget.dart:24:15 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\widgets\alertas_widget.dart:99:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\widgets\kpi_card.dart:99:45 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\widgets\proximos_vencimientos_widget.dart:27:17 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\widgets\proximos_vencimientos_widget.dart:101:52 - deprecated_member_use
+  error - The argument type 'Value<double>' can't be assigned to the parameter type 'double'.  - lib\features\pagos\data\datasources\pago_local_data_source.dart:60:29 - argument_type_not_assignable
+  error - The argument type 'Value<double>' can't be assigned to the parameter type 'double'.  - lib\features\pagos\data\datasources\pago_local_data_source.dart:61:29 - argument_type_not_assignable
+  error - The argument type 'Value<int?>' can't be assigned to the parameter type 'int'.  - lib\features\pagos\data\datasources\pago_local_data_source.dart:63:23 - argument_type_not_assignable
+  error - The argument type 'Value<String>' can't be assigned to the parameter type 'String'.  - lib\features\pagos\data\datasources\pago_local_data_source.dart:64:27 - argument_type_not_assignable
+  error - The argument type 'double' can't be assigned to the parameter type 'Value<double>'.  - lib\features\pagos\data\models\pago_model.dart:75:18 - argument_type_not_assignable
+  error - The argument type 'int?' can't be assigned to the parameter type 'int'.  - lib\features\pagos\data\models\pago_model.dart:79:15 - argument_type_not_assignable
+  error - The argument type 'String?' can't be assigned to the parameter type 'String'.  - lib\features\pagos\data\models\pago_model.dart:80:19 - argument_type_not_assignable
+  error - The argument type 'String?' can't be assigned to the parameter type 'Value<String?>'.  - lib\features\pagos\data\models\pago_model.dart:81:22 - argument_type_not_assignable
+  error - The argument type 'DateTime' can't be assigned to the parameter type 'Value<DateTime>'.  - lib\features\pagos\data\models\pago_model.dart:82:22 - argument_type_not_assignable
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\data\repositories\pago_repository.impl.dart:104:12 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\data\repositories\pago_repository.impl.dart:104:17 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\data\repositories\pago_repository_impl.dart:102:13 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\data\repositories\pago_repository_impl.dart:102:18 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\data\repositories\pago_repository_impl.dart:107:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\data\repositories\pago_repository_impl.dart:107:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:42:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:42:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:46:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:46:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:50:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:50:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:74:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:74:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:88:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:88:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:102:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\domain\usecases\pago_usecases.dart:102:19 - prefer_const_constructors
+  error - The returned type 'List<dynamic>' isn't returnable from a 'FutureOr<List<Pago>>' function, as required by the closure's context - lib\features\pagos\presentation\providers\pago_provider.dart:51:16 - return_of_invalid_type_from_closure
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:167:27 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:170:25 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:172:29 - prefer_const_constructors
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:202:15 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\pagos\presentation\widgets\historial_pagos_widget.dart:128:69 - deprecated_member_use
+  error - There's no constant named 'pagosFijos' in 'TipoInteres' - lib\features\prestamos\data\models\prestamo_model.dart:140:33 - undefined_enum_constant
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:34:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:34:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:74:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:74:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:90:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:90:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:95:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:95:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:175:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\data\repositories\prestamo_repository_impl.dart:175:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\cuota_usecases.dart:61:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\cuota_usecases.dart:61:19 - prefer_const_constructors
+  error - The method 'CalculationFailure' isn't defined for the type 'CalcularMoraCuota' - lib\features\prestamos\domain\usecases\cuota_usecases.dart:96:19 - undefined_method
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:19:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:19:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:22:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:22:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:25:16 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:25:21 - prefer_const_constructors
+  error - The method 'CalculationFailure' isn't defined for the type 'GenerarTablaAmortizacion' - lib\features\prestamos\domain\usecases\generar_tabla_amortizacion.dart:50:19 - undefined_method
+warning - Unused import: '../entities/cuota.dart' - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:4:8 - unused_import
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:124:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:128:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:132:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:136:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:140:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:158:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:158:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:189:18 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:189:23 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:216:18 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\prestamos\domain\usecases\prestamo_usecases.dart:216:23 - prefer_const_constructors
+  error - The name 'LoadingState' isn't a class - lib\features\prestamos\presentation\screens\prestamo_detail_screen.dart:155:30 - creation_with_non_type
+  error - The method 'ErrorState' isn't defined for the type 'PrestamoDetailScreen' - lib\features\prestamos\presentation\screens\prestamo_detail_screen.dart:156:34 - undefined_method
+warning - Unused import: '../../../clientes/domain/entities/cliente.dart' - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:8:8 - unused_import
+warning - The value of the field '_isCalculating' isn't used - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:47:8 - unused_field
+  error - 1 positional argument expected by 'calcularTotalesProvider', but 0 found - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:101:9 - not_enough_positional_arguments
+  error - The named parameter 'monto' isn't defined - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:101:9 - undefined_named_parameter
+  error - The named parameter 'tasaInteres' isn't defined - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:102:9 - undefined_named_parameter
+  error - The named parameter 'tipoInteres' isn't defined - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:103:9 - undefined_named_parameter
+  error - The named parameter 'plazoMeses' isn't defined - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:104:9 - undefined_named_parameter
+  error - The expression doesn't evaluate to a function, so it can't be invoked - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:108:40 - invocation_of_non_function_expression
+  error - A value of type 'Object?' can't be assigned to a variable of type 'List<Cuota>?' - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:119:24 - invalid_assignment
+  error - The argument type 'ClientesState' can't be assigned to the parameter type 'AsyncValue<ClientesState>'.  - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:254:41 - argument_type_not_assignable
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:401:11 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:443:11 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:502:21 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:503:21 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:514:21 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:515:21 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\screens\prestamo_form_screen.dart:553:45 - deprecated_member_use
+  error - The method 'EmptyState' isn't defined for the type '_PrestamosListScreenState' - lib\features\prestamos\presentation\screens\prestamos_list_screen.dart:92:26 - undefined_method
+  error - The name 'LoadingState' isn't a class - lib\features\prestamos\presentation\screens\prestamos_list_screen.dart:124:36 - creation_with_non_type
+  error - The method 'ErrorState' isn't defined for the type '_PrestamosListScreenState' - lib\features\prestamos\presentation\screens\prestamos_list_screen.dart:125:40 - undefined_method
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\estado_badge.dart:65:29 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\estado_badge.dart:91:29 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\prestamo_card.dart:145:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\prestamo_card.dart:171:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\resumen_prestamo_widget.dart:198:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\resumen_prestamo_widget.dart:307:22 - deprecated_member_use
+   info - 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:74:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:75:42 - deprecated_member_use
+   info - 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:93:20 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:95:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:97:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:192:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:195:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\prestamos\presentation\widgets\tabla_amortizacion_widget.dart:274:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\app_drawer.dart:40:41 - deprecated_member_use
+warning - A value for optional parameter 'key' isn't ever given - lib\presentation\widgets\custom_button.dart:102:11 - unused_element_parameter
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\custom_text_field.dart:89:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\custom_text_field.dart:115:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\custom_text_field.dart:121:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\custom_text_field.dart:402:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\state_widgets.dart:147:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\state_widgets.dart:162:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\state_widgets.dart:206:70 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\state_widgets.dart:209:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\state_widgets.dart:409:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\presentation\widgets\state_widgets.dart:424:61 - deprecated_member_use
+   info - The imported package 'prestamos_app' isn't a dependency of the importing package - test\widget_test.dart:11:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:prestamos_app/main.dart' - test\widget_test.dart:11:8 - uri_does_not_exist
+  error - The name 'MyApp' isn't a class - test\widget_test.dart:16:35 - creation_with_non_type
+

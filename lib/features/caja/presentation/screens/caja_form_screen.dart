@@ -193,8 +193,8 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
                   CustomTextField(
                     controller: _nombreController,
                     label: 'Nombre de la Caja',
-                    prefixIcon: Icons.account_balance_wallet,
-                    validator: Validators.required('El nombre es requerido'),
+                    prefixIcon: const Icon(Icons.account_balance_wallet),
+                    validator: (value) => Validators.required(value, fieldName: 'El nombre'),
                   ),
                   
                   const SizedBox(height: 16),
@@ -212,17 +212,17 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
                           controller: _saldoInicialController,
                           label: 'Saldo Inicial',
                           keyboardType: TextInputType.number,
-                          prefixIcon: Icons.attach_money,
-                          validator: Validators.combine([
-                            Validators.required('El saldo inicial es requerido'),
-                            (value) {
-                              final saldo = double.tryParse(value ?? '');
+                          prefixIcon: const Icon(Icons.attach_money),
+                          validator: (value) => Validators.combine([
+                            (v) => Validators.required(v, fieldName: 'El saldo inicial'),
+                            (v) {
+                              final saldo = double.tryParse(v ?? '');
                               if (saldo == null || saldo < 0) {
                                 return 'El saldo debe ser mayor o igual a 0';
                               }
                               return null;
                             },
-                          ]),
+                          ])(value),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -233,9 +233,9 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
                     CustomTextField(
                       controller: _bancoController,
                       label: 'Nombre del Banco',
-                      prefixIcon: Icons.business,
-                      validator: _tipo == 'BANCO' 
-                          ? Validators.required('El nombre del banco es requerido') 
+                      prefixIcon: const Icon(Icons.business),
+                      validator: (value) => _tipo == 'BANCO' 
+                          ? Validators.required(value, fieldName: 'El nombre del banco') 
                           : null,
                     ),
                     
@@ -244,7 +244,7 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
                     CustomTextField(
                       controller: _numeroCuentaController,
                       label: 'Número de Cuenta',
-                      prefixIcon: Icons.confirmation_number,
+                      prefixIcon: const Icon(Icons.confirmation_number),
                     ),
                     
                     const SizedBox(height: 16),
@@ -252,7 +252,7 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
                     CustomTextField(
                       controller: _titularController,
                       label: 'Titular de la Cuenta',
-                      prefixIcon: Icons.person,
+                      prefixIcon: const Icon(Icons.person),
                     ),
                     
                     const SizedBox(height: 16),
@@ -263,7 +263,7 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
                     controller: _descripcionController,
                     label: 'Descripción (opcional)',
                     maxLines: 3,
-                    prefixIcon: Icons.notes,
+                    prefixIcon: const Icon(Icons.notes),
                   ),
                   
                   const SizedBox(height: 16),

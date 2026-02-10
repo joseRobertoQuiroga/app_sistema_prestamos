@@ -200,11 +200,11 @@ class _RegistrarEgresoScreenState extends ConsumerState<RegistrarEgresoScreen> {
                   controller: _montoController,
                   label: 'Monto del Egreso',
                   keyboardType: TextInputType.number,
-                  prefixIcon: Icons.remove_circle,
+                  prefixIcon: const Icon(Icons.remove_circle),
                   onChanged: (_) => setState(() {}), // Para actualizar validación
-                  validator: Validators.combine([
-                    Validators.required('El monto es requerido'),
-                    Validators.amount(),
+                  validator: (value) => Validators.combine([
+                    (v) => Validators.required(v, fieldName: 'El monto'),
+                    (v) => Validators.amount(v),
                     (value) {
                       final monto = double.tryParse(value ?? '');
                       if (monto != null && monto > caja.saldo) {
@@ -212,7 +212,7 @@ class _RegistrarEgresoScreenState extends ConsumerState<RegistrarEgresoScreen> {
                       }
                       return null;
                     },
-                  ]),
+                  ])(value),
                 ),
                 
                 const SizedBox(height: 16),
@@ -243,8 +243,8 @@ class _RegistrarEgresoScreenState extends ConsumerState<RegistrarEgresoScreen> {
                   controller: _descripcionController,
                   label: 'Descripción / Concepto',
                   maxLines: 3,
-                  prefixIcon: Icons.description,
-                  validator: Validators.required('La descripción es requerida'),
+                  prefixIcon: const Icon(Icons.description),
+                  validator: (value) => Validators.required(value, fieldName: 'La descripción'),
                 ),
                 
                 const SizedBox(height: 16),
@@ -276,7 +276,7 @@ class _RegistrarEgresoScreenState extends ConsumerState<RegistrarEgresoScreen> {
                 CustomTextField(
                   controller: _referenciaController,
                   label: 'Referencia / N° Comprobante (opcional)',
-                  prefixIcon: Icons.confirmation_number,
+                  prefixIcon: const Icon(Icons.confirmation_number),
                 ),
                 
                 const SizedBox(height: 32),
