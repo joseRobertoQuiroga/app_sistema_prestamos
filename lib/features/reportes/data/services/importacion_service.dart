@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:excel/excel.dart';
 import '../../../clientes/domain/entities/cliente.dart';
-import '../../../prestamos/domain/entities/prestamo.dart';
 import '../../domain/entities/reportes_entities.dart';
 
 /// Servicio para importar datos desde Excel
@@ -42,62 +41,71 @@ class ImportacionService {
         );
       }
 
-      // Saltar encabezado
+      // Mapeo de columnas según CLIENTES_PRUEBA.xlsx:
+      // A: Nombres, B: Apellidos, C: Tipo Documento, D: Número Documento
+      // E: Teléfono, F: Email, G: Dirección, H: Referencia, I: Observaciones
+      
+      // Saltar encabezado (fila 0)
       for (var i = 1; i < rows.length; i++) {
         final fila = rows[i];
         final numeroFila = i + 1;
 
         try {
           // Extraer datos
-          final nombre = _getCellValue(fila, 0);
-          final ci = _getCellValue(fila, 1);
-          final telefono = _getCellValue(fila, 2);
-          final email = _getCellValue(fila, 3);
-          final direccion = _getCellValue(fila, 4);
-          final ciudad = _getCellValue(fila, 5);
-          final departamento = _getCellValue(fila, 6);
+          final nombres = _getCellValue(fila, 0);
+          final apellidos = _getCellValue(fila, 1);
+          final tipoDoc = _getCellValue(fila, 2);
+          final ci = _getCellValue(fila, 3);
+          final telefono = _getCellValue(fila, 4);
+          final email = _getCellValue(fila, 5);
+          final direccion = _getCellValue(fila, 6);
           final referencia = _getCellValue(fila, 7);
-          final notas = _getCellValue(fila, 8);
+          final observaciones = _getCellValue(fila, 8);
 
           // Validaciones
           final erroresFila = <ErrorImportacion>[];
 
-          // Nombre obligatorio
-          if (nombre.isEmpty) {
+          if (nombres.isEmpty) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
-              campo: 'Nombre',
-              mensaje: 'El nombre es obligatorio',
+              campo: 'Nombres',
+              mensaje: 'Los nombres son obligatorios',
             ));
-          } else if (nombre.length < 3) {
+          } else if (nombres.length < 2) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
-              campo: 'Nombre',
-              mensaje: 'El nombre debe tener al menos 3 caracteres',
-              valorProblematico: nombre,
+              campo: 'Nombres',
+              mensaje: 'Los nombres deben tener al menos 2 caracteres',
+              valorProblematico: nombres,
             ));
           }
 
-          // CI obligatorio y único
+          if (apellidos.isEmpty) {
+            erroresFila.add(ErrorImportacion(
+              fila: numeroFila,
+              campo: 'Apellidos',
+              mensaje: 'Los apellidos son obligatorios',
+            ));
+          }
+
           if (ci.isEmpty) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
-              campo: 'CI',
-              mensaje: 'El CI es obligatorio',
+              campo: 'Número Documento',
+              mensaje: 'El número de documento es obligatorio',
             ));
           } else {
             final existe = await verificarCiExiste(ci);
             if (existe) {
               erroresFila.add(ErrorImportacion(
                 fila: numeroFila,
-                campo: 'CI',
-                mensaje: 'El CI ya existe en el sistema',
+                campo: 'Número Documento',
+                mensaje: 'El documento $ci ya existe en el sistema',
                 valorProblematico: ci,
               ));
             }
           }
 
-          // Email formato válido
           if (email.isNotEmpty && !_esEmailValido(email)) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
@@ -107,7 +115,6 @@ class ImportacionService {
             ));
           }
 
-          // Teléfono solo números
           if (telefono.isNotEmpty && !_esTelefonoValido(telefono)) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
@@ -117,7 +124,14 @@ class ImportacionService {
             ));
           }
 
-          // Si hay errores, no guardar
+          if (direccion.isEmpty) {
+            erroresFila.add(ErrorImportacion(
+              fila: numeroFila,
+              campo: 'Dirección',
+              mensaje: 'La dirección es obligatoria',
+            ));
+          }
+
           if (erroresFila.isNotEmpty) {
             errores.addAll(erroresFila);
             fallidos++;
@@ -126,20 +140,19 @@ class ImportacionService {
 
           // Crear cliente
           final cliente = Cliente(
-            nombre: nombre,
+            nombre: '$nombres $apellidos',
             ci: ci,
             telefono: telefono.isEmpty ? null : telefono,
             email: email.isEmpty ? null : email,
-            direccion: direccion.isEmpty ? null : direccion,
-            ciudad: ciudad.isEmpty ? null : ciudad,
-            departamento: departamento.isEmpty ? null : departamento,
+            direccion: direccion,
+            ciudad: null,
+            departamento: null,
             referencia: referencia.isEmpty ? null : referencia,
             fechaRegistro: DateTime.now(),
             activo: true,
-            notas: notas.isEmpty ? null : notas,
+            notas: observaciones.isEmpty ? null : observaciones,
           );
 
-          // Guardar
           await guardarCliente(cliente);
           exitosos++;
 
@@ -182,7 +195,8 @@ class ImportacionService {
   Future<ResultadoImportacion> importarPrestamos(
     String rutaArchivo,
     Future<int?> Function(String ci) obtenerClientePorCi,
-    Future<int> Function(Prestamo) guardarPrestamo,
+    Future<int?> Function(String nombreCaja) obtenerCajaPorNombre,
+    Future<int> Function(PrestamoImportacion) guardarPrestamo,
   ) async {
     final inicio = DateTime.now();
     final errores = <ErrorImportacion>[];
@@ -212,39 +226,66 @@ class ImportacionService {
         );
       }
 
-      // Saltar encabezado
-      for (var i = 1; i < rows.length; i++) {
+      // Mapeo de columnas según PRESTAMOS_PRUEBA.xlsx:
+      // A: Número Documento Cliente, B: Nombre Caja, C: Monto Original
+      // D: Tasa Interés (%), E: Tipo Interés, F: Plazo Meses
+      // G: Fecha Inicio, H: Observaciones
+      
+      // Saltar encabezado (fila 0) y fila de instrucciones (fila 1)
+      for (var i = 2; i < rows.length; i++) {
         final fila = rows[i];
         final numeroFila = i + 1;
 
         try {
           // Extraer datos
           final ciCliente = _getCellValue(fila, 0);
-          final montoStr = _getCellValue(fila, 1);
-          final tasaStr = _getCellValue(fila, 2);
-          final plazoStr = _getCellValue(fila, 3);
+          final nombreCaja = _getCellValue(fila, 1);
+          final montoStr = _getCellValue(fila, 2);
+          final tasaStr = _getCellValue(fila, 3);
           final tipoInteres = _getCellValue(fila, 4).toUpperCase();
-          final fechaInicioStr = _getCellValue(fila, 5);
-          final observaciones = _getCellValue(fila, 6);
+          final plazoStr = _getCellValue(fila, 5);
+          final fechaInicioStr = _getCellValue(fila, 6);
+          final observaciones = _getCellValue(fila, 7);
 
           // Validaciones
           final erroresFila = <ErrorImportacion>[];
 
-          // Verificar que el cliente existe
+          // Validar cliente
+          int? clienteId;
           if (ciCliente.isEmpty) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
-              campo: 'CI Cliente',
-              mensaje: 'El CI del cliente es obligatorio',
+              campo: 'Número Documento Cliente',
+              mensaje: 'El documento del cliente es obligatorio',
             ));
           } else {
-            final clienteId = await obtenerClientePorCi(ciCliente);
+            clienteId = await obtenerClientePorCi(ciCliente);
             if (clienteId == null) {
               erroresFila.add(ErrorImportacion(
                 fila: numeroFila,
-                campo: 'CI Cliente',
-                mensaje: 'El cliente con CI $ciCliente no existe en el sistema',
+                campo: 'Número Documento Cliente',
+                mensaje: 'Cliente con documento $ciCliente no existe. Importe clientes primero.',
                 valorProblematico: ciCliente,
+              ));
+            }
+          }
+
+          // Validar caja
+          int? cajaId;
+          if (nombreCaja.isEmpty) {
+            erroresFila.add(ErrorImportacion(
+              fila: numeroFila,
+              campo: 'Nombre Caja',
+              mensaje: 'El nombre de la caja es obligatorio',
+            ));
+          } else {
+            cajaId = await obtenerCajaPorNombre(nombreCaja);
+            if (cajaId == null) {
+              erroresFila.add(ErrorImportacion(
+                fila: numeroFila,
+                campo: 'Nombre Caja',
+                mensaje: 'La caja "$nombreCaja" no existe en el sistema',
+                valorProblematico: nombreCaja,
               ));
             }
           }
@@ -254,7 +295,7 @@ class ImportacionService {
           if (montoStr.isEmpty) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
-              campo: 'Monto',
+              campo: 'Monto Original',
               mensaje: 'El monto es obligatorio',
             ));
           } else {
@@ -262,7 +303,7 @@ class ImportacionService {
             if (monto == null || monto <= 0) {
               erroresFila.add(ErrorImportacion(
                 fila: numeroFila,
-                campo: 'Monto',
+                campo: 'Monto Original',
                 mensaje: 'El monto debe ser un número positivo',
                 valorProblematico: montoStr,
               ));
@@ -279,11 +320,11 @@ class ImportacionService {
             ));
           } else {
             tasa = double.tryParse(tasaStr);
-            if (tasa == null || tasa < 0 || tasa > 100) {
+            if (tasa == null || tasa < 0 || tasa > 200) {
               erroresFila.add(ErrorImportacion(
                 fila: numeroFila,
                 campo: 'Tasa Interés',
-                mensaje: 'La tasa debe estar entre 0 y 100',
+                mensaje: 'La tasa debe estar entre 0 y 200% anual',
                 valorProblematico: tasaStr,
               ));
             }
@@ -294,7 +335,7 @@ class ImportacionService {
           if (plazoStr.isEmpty) {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
-              campo: 'Plazo',
+              campo: 'Plazo Meses',
               mensaje: 'El plazo es obligatorio',
             ));
           } else {
@@ -302,7 +343,7 @@ class ImportacionService {
             if (plazo == null || plazo < 1 || plazo > 120) {
               erroresFila.add(ErrorImportacion(
                 fila: numeroFila,
-                campo: 'Plazo',
+                campo: 'Plazo Meses',
                 mensaje: 'El plazo debe estar entre 1 y 120 meses',
                 valorProblematico: plazoStr,
               ));
@@ -346,13 +387,19 @@ class ImportacionService {
             continue;
           }
 
-          // Obtener ID del cliente
-          final clienteId = await obtenerClientePorCi(ciCliente);
-          
-          // TODO: Crear préstamo completo con generación de código, 
-          // cálculo de tabla de amortización, etc.
-          // Por ahora solo estructura básica
-          
+          // Crear préstamo para importación
+          final prestamo = PrestamoImportacion(
+            clienteId: clienteId!,
+            cajaId: cajaId!,
+            montoOriginal: monto!,
+            tasaInteres: tasa!,
+            tipoInteres: tipoInteres,
+            plazoMeses: plazo!,
+            fechaInicio: fechaInicio!,
+            observaciones: observaciones.isEmpty ? null : observaciones,
+          );
+
+          await guardarPrestamo(prestamo);
           exitosos++;
 
         } catch (e) {
@@ -390,7 +437,9 @@ class ImportacionService {
     );
   }
 
-  // Métodos auxiliares
+  // =========================================================================
+  // MÉTODOS AUXILIARES
+  // =========================================================================
   
   String _getCellValue(List<Data?> row, int index) {
     if (index >= row.length || row[index] == null) return '';
@@ -407,8 +456,9 @@ class ImportacionService {
   }
 
   bool _esTelefonoValido(String telefono) {
+    final cleaned = telefono.replaceAll(RegExp(r'[\s-]'), '');
     final regex = RegExp(r'^\d{7,15}$');
-    return regex.hasMatch(telefono.replaceAll(RegExp(r'[\s-]'), ''));
+    return regex.hasMatch(cleaned);
   }
 
   DateTime? _parsearFecha(String fecha) {
@@ -426,4 +476,31 @@ class ImportacionService {
       return null;
     }
   }
+}
+
+// =========================================================================
+// CLASE AUXILIAR PARA IMPORTACIÓN DE PRÉSTAMOS
+// =========================================================================
+
+/// Datos de préstamo extraídos del Excel para crear el préstamo completo
+class PrestamoImportacion {
+  final int clienteId;
+  final int cajaId;
+  final double montoOriginal;
+  final double tasaInteres;
+  final String tipoInteres;
+  final int plazoMeses;
+  final DateTime fechaInicio;
+  final String? observaciones;
+
+  PrestamoImportacion({
+    required this.clienteId,
+    required this.cajaId,
+    required this.montoOriginal,
+    required this.tasaInteres,
+    required this.tipoInteres,
+    required this.plazoMeses,
+    required this.fechaInicio,
+    this.observaciones,
+  });
 }

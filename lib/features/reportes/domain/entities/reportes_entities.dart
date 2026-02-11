@@ -175,6 +175,28 @@ class ResultadoImportacion extends Equatable {
   double get porcentajeExito =>
       totalRegistros > 0 ? (registrosExitosos / totalRegistros) * 100 : 0;
 
+  /// Agrupa errores por tipo de campo para mostrar resumen
+  Map<String, int> getErroresAgrupados() {
+    final agrupados = <String, int>{};
+    for (final error in errores) {
+      agrupados[error.campo] = (agrupados[error.campo] ?? 0) + 1;
+    }
+    return agrupados;
+  }
+
+  /// Obtiene un resumen de errores en texto plano
+  String getResumenErrores() {
+    if (errores.isEmpty) return 'Sin errores';
+    
+    final agrupados = getErroresAgrupados();
+    final buffer = StringBuffer();
+    buffer.writeln('Errores encontrados:');
+    agrupados.forEach((campo, cantidad) {
+      buffer.writeln('  • $campo: $cantidad error(es)');
+    });
+    return buffer.toString();
+  }
+
   @override
   List<Object?> get props => [
         registrosExitosos,
@@ -198,6 +220,16 @@ class ErrorImportacion extends Equatable {
     required this.mensaje,
     this.valorProblematico,
   });
+
+  @override
+  String toString() {
+    final buffer = StringBuffer();
+    buffer.write('Fila $fila - $campo: $mensaje');
+    if (valorProblematico != null) {
+      buffer.write(' (Valor: "$valorProblematico")');
+    }
+    return buffer.toString();
+  }
 
   @override
   List<Object?> get props => [fila, campo, mensaje, valorProblematico];

@@ -164,4 +164,16 @@ class ClienteLocalDataSource {
           ..where((tbl) => tbl.id.equals(id)))
         .write(const ClientesCompanion(activo: Value(true)));
   }
+
+  /// Verifica si un cliente tiene préstamos activos
+  /// 
+  /// Returns true si el cliente tiene al menos un préstamo en estado ACTIVO o MORA
+  Future<bool> clienteTienePrestamosActivos(int clienteId) async {
+    final prestamos = await (database.select(database.prestamos)
+          ..where((tbl) => tbl.clienteId.equals(clienteId))
+          ..where((tbl) => tbl.estado.isIn(['ACTIVO', 'MORA'])))
+        .get();
+    
+    return prestamos.isNotEmpty;
+  }
 }

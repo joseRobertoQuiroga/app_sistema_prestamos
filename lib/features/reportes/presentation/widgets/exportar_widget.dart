@@ -14,80 +14,89 @@ class ExportarWidget extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Exportar Datos a Excel',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Exporte todos los datos del sistema a archivos Excel para análisis externo.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Exportar Datos a Excel',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
+              const SizedBox(height: 4),
+              Text(
+                'Exporte todos los datos del sistema a archivos Excel para análisis externo.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
+        const Divider(height: 1),
 
         if (exportando)
           const Expanded(
             child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Exportando datos...'),
-                  ],
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Exportando datos...'),
+                ],
               ),
             ),
           )
         else
           Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.5,
-              children: [
-                _buildExportCard(
-                  context,
-                  ref,
-                  titulo: 'Clientes',
-                  descripcion: 'Exportar todos los clientes',
-                  icono: Icons.people,
-                  color: Colors.blue,
-                  tipo: TipoDatoExportacion.clientes,
-                ),
-                _buildExportCard(
-                  context,
-                  ref,
-                  titulo: 'Préstamos',
-                  descripcion: 'Exportar todos los préstamos',
-                  icono: Icons.account_balance,
-                  color: Colors.green,
-                  tipo: TipoDatoExportacion.prestamos,
-                ),
-                _buildExportCard(
-                  context,
-                  ref,
-                  titulo: 'Pagos',
-                  descripcion: 'Exportar todos los pagos',
-                  icono: Icons.payment,
-                  color: Colors.orange,
-                  tipo: TipoDatoExportacion.pagos,
-                ),
-                _buildExportCard(
-                  context,
-                  ref,
-                  titulo: 'Movimientos',
-                  descripcion: 'Exportar movimientos de caja',
-                  icono: Icons.swap_horiz,
-                  color: Colors.purple,
-                  tipo: TipoDatoExportacion.movimientos,
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: GridView.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.3,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildExportCard(
+                    context,
+                    ref,
+                    titulo: 'Clientes',
+                    descripcion: 'Exportar todos los clientes',
+                    icono: Icons.people,
+                    color: Colors.blue,
+                    tipo: TipoDatoExportacion.clientes,
+                  ),
+                  _buildExportCard(
+                    context,
+                    ref,
+                    titulo: 'Préstamos',
+                    descripcion: 'Exportar todos los préstamos',
+                    icono: Icons.account_balance,
+                    color: Colors.green,
+                    tipo: TipoDatoExportacion.prestamos,
+                  ),
+                  _buildExportCard(
+                    context,
+                    ref,
+                    titulo: 'Pagos',
+                    descripcion: 'Exportar todos los pagos',
+                    icono: Icons.payment,
+                    color: Colors.orange,
+                    tipo: TipoDatoExportacion.pagos,
+                  ),
+                  _buildExportCard(
+                    context,
+                    ref,
+                    titulo: 'Movimientos',
+                    descripcion: 'Exportar movimientos de caja',
+                    icono: Icons.swap_horiz,
+                    color: Colors.purple,
+                    tipo: TipoDatoExportacion.movimientos,
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -104,40 +113,53 @@ class ExportarWidget extends ConsumerWidget {
     required TipoDatoExportacion tipo,
   }) {
     return Card(
-      elevation: 2,
+      elevation: 1,
       child: InkWell(
         onTap: () => _exportarDatos(context, ref, tipo),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(icono, color: color, size: 32),
-                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icono, color: color, size: 24),
+                  ),
                   Icon(
                     Icons.file_download,
                     color: Colors.grey[400],
-                    size: 20,
+                    size: 18,
                   ),
                 ],
               ),
-              const Spacer(),
-              Text(
-                titulo,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                descripcion,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    descripcion,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ],
           ),

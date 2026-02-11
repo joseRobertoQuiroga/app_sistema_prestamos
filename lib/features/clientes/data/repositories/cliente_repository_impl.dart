@@ -129,4 +129,16 @@ class ClienteRepositoryImpl implements ClienteRepository {
       ));
     }
   }
+
+  @override
+  Future<Either<Failure, bool>> clienteTienePrestamosActivos(int clienteId) async {
+    try {
+      final tienePrestamos = await localDataSource.clienteTienePrestamosActivos(clienteId);
+      return Right(tienePrestamos);
+    } catch (e) {
+      return Left(DatabaseFailure(
+        'Error al verificar préstamos activos: ${e.toString()}'
+      ));
+    }
+  }
 }

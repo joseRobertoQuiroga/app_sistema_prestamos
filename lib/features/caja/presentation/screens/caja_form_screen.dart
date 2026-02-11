@@ -186,127 +186,145 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  // Nombre
-                  CustomTextField(
-                    controller: _nombreController,
-                    label: 'Nombre de la Caja',
-                    prefixIcon: const Icon(Icons.account_balance_wallet),
-                    validator: (value) => Validators.required(value, fieldName: 'El nombre'),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Tipo
-                  _buildTipoSelector(),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Saldo Inicial (solo en creación)
-                  if (widget.cajaId == null)
-                    Column(
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
                       children: [
+                        // Nombre
                         CustomTextField(
-                          controller: _saldoInicialController,
-                          label: 'Saldo Inicial',
-                          keyboardType: TextInputType.number,
-                          prefixIcon: const Icon(Icons.attach_money),
-                          validator: (value) => Validators.combine([
-                            (v) => Validators.required(v, fieldName: 'El saldo inicial'),
-                            (v) {
-                              final saldo = double.tryParse(v ?? '');
-                              if (saldo == null || saldo < 0) {
-                                return 'El saldo debe ser mayor o igual a 0';
-                              }
-                              return null;
-                            },
-                          ])(value),
+                          controller: _nombreController,
+                          label: 'Nombre de la Caja',
+                          prefixIcon: const Icon(Icons.account_balance_wallet),
+                          validator: (value) =>
+                              Validators.required(value, fieldName: 'El nombre'),
                         ),
+
                         const SizedBox(height: 16),
+
+                        // Tipo
+                        _buildTipoSelector(),
+
+                        const SizedBox(height: 16),
+
+                        // Saldo Inicial (solo en creación)
+                        if (widget.cajaId == null)
+                          Column(
+                            children: [
+                              CustomTextField(
+                                controller: _saldoInicialController,
+                                label: 'Saldo Inicial',
+                                keyboardType: TextInputType.number,
+                                prefixIcon: const Icon(Icons.attach_money),
+                                validator: (value) => Validators.combine([
+                                  (v) => Validators.required(v,
+                                      fieldName: 'El saldo inicial'),
+                                  (v) {
+                                    final saldo = double.tryParse(v ?? '');
+                                    if (saldo == null || saldo < 0) {
+                                      return 'El saldo debe ser mayor o igual a 0';
+                                    }
+                                    return null;
+                                  },
+                                ])(value),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+
+                        // Campos específicos para BANCO
+                        if (_tipo == 'BANCO') ...[
+                          CustomTextField(
+                            controller: _bancoController,
+                            label: 'Nombre del Banco',
+                            prefixIcon: const Icon(Icons.business),
+                            validator: (value) => _tipo == 'BANCO'
+                                ? Validators.required(value,
+                                    fieldName: 'El nombre del banco')
+                                : null,
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          CustomTextField(
+                            controller: _numeroCuentaController,
+                            label: 'Número de Cuenta',
+                            prefixIcon: const Icon(Icons.confirmation_number),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          CustomTextField(
+                            controller: _titularController,
+                            label: 'Titular de la Cuenta',
+                            prefixIcon: const Icon(Icons.person),
+                          ),
+
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Descripción
+                        CustomTextField(
+                          controller: _descripcionController,
+                          label: 'Descripción (opcional)',
+                          maxLines: 3,
+                          prefixIcon: const Icon(Icons.notes),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Estado Activa/Inactiva
+                        SwitchListTile(
+                          title: const Text('Caja Activa'),
+                          subtitle: Text(_activa
+                              ? 'La caja está habilitada para transacciones'
+                              : 'La caja está deshabilitada'),
+                          value: _activa,
+                          onChanged: (value) {
+                            setState(() => _activa = value);
+                          },
+                        ),
                       ],
                     ),
-                  
-                  // Campos específicos para BANCO
-                  if (_tipo == 'BANCO') ...[
-                    CustomTextField(
-                      controller: _bancoController,
-                      label: 'Nombre del Banco',
-                      prefixIcon: const Icon(Icons.business),
-                      validator: (value) => _tipo == 'BANCO' 
-                          ? Validators.required(value, fieldName: 'El nombre del banco') 
-                          : null,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      controller: _numeroCuentaController,
-                      label: 'Número de Cuenta',
-                      prefixIcon: const Icon(Icons.confirmation_number),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      controller: _titularController,
-                      label: 'Titular de la Cuenta',
-                      prefixIcon: const Icon(Icons.person),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                  ],
-                  
-                  // Descripción
-                  CustomTextField(
-                    controller: _descripcionController,
-                    label: 'Descripción (opcional)',
-                    maxLines: 3,
-                    prefixIcon: const Icon(Icons.notes),
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Estado Activa/Inactiva
-                  SwitchListTile(
-                    title: const Text('Caja Activa'),
-                    subtitle: Text(_activa 
-                        ? 'La caja está habilitada para transacciones' 
-                        : 'La caja está deshabilitada'),
-                    value: _activa,
-                    onChanged: (value) {
-                      setState(() => _activa = value);
-                    },
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Botones de Acción
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CustomButton(
-                          text: 'Cancelar',
-                          type: ButtonType.outlined,
-                          onPressed: () => Navigator.pop(context),
+
+                  // Botones de Acción Fijos
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -4),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 2,
-                        child: CustomButton(
-                          text: widget.cajaId == null 
-                              ? 'Crear Caja' 
-                              : 'Actualizar Caja',
-                          onPressed: _guardarCaja,
-                          isLoading: _isLoading,
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Cancelar',
+                            type: ButtonType.outlined,
+                            onPressed: () => Navigator.pop(context),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: CustomButton(
+                            text: widget.cajaId == null
+                                ? 'Crear Caja'
+                                : 'Actualizar Caja',
+                            onPressed: _guardarCaja,
+                            isLoading: _isLoading,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  
-                  const SizedBox(height: 32),
                 ],
               ),
             ),

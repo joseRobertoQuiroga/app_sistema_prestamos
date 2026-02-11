@@ -155,155 +155,190 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sección: Identificación
-              _buildFormSection(
-                context,
-                title: 'IDENTIFICACIÓN',
-                icon: Icons.person_rounded,
-                children: [
-                  CustomTextField(
-                    label: 'Nombre completo',
-                    controller: _nombreController,
-                    hintText: 'Ingresar nombre y apellido',
-                    prefixIcon: Icons.account_circle_rounded,
-                    textCapitalization: TextCapitalization.words,
-                    validator: (value) => Validators.name(value, fieldName: 'El nombre'),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'Documento (CI)',
-                    controller: _ciController,
-                    hintText: 'Ingresar CI sin puntos ni guiones',
-                    prefixIcon: Icons.badge_rounded,
-                    keyboardType: TextInputType.number,
-                    validator: Validators.document,
-                  ),
-                ],
-              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-
-              const SizedBox(height: 24),
-
-              // Sección: Contacto
-              _buildFormSection(
-                context,
-                title: 'COMUNICACIÓN',
-                icon: Icons.contact_phone_rounded,
-                children: [
-                  CustomTextField(
-                    label: 'Teléfono de contacto',
-                    controller: _telefonoController,
-                    hintText: 'Ej: 0981 123 456',
-                    prefixIcon: Icons.phone_android_rounded,
-                    keyboardType: TextInputType.phone,
-                    validator: Validators.phoneOptional,
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'Correo Electrónico',
-                    controller: _emailController,
-                    hintText: 'ejemplo@correo.com (Opcional)',
-                    prefixIcon: Icons.alternate_email_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                ],
-              ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-
-              const SizedBox(height: 24),
-
-              // Sección: Ubicación
-              _buildFormSection(
-                context,
-                title: 'UBICACIÓN',
-                icon: Icons.location_on_rounded,
-                children: [
-                  CustomTextField(
-                    label: 'Dirección particular',
-                    controller: _direccionController,
-                    hintText: 'Calle, número de casa, etc.',
-                    prefixIcon: Icons.home_rounded,
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CustomTextField(
-                          label: 'Ciudad',
-                          controller: _ciudadController,
-                          hintText: 'Localidad',
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sección: Identificación
+                    _buildFormSection(
+                      context,
+                      title: 'IDENTIFICACIÓN',
+                      icon: Icons.person_rounded,
+                      children: [
+                        CustomTextField(
+                          label: 'Nombre completo',
+                          controller: _nombreController,
+                          hintText: 'Ingresar nombre y apellido',
+                          prefixIcon: Icons.account_circle_rounded,
+                          textCapitalization: TextCapitalization.words,
+                          validator: (value) =>
+                              Validators.name(value, fieldName: 'El nombre'),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: CustomTextField(
-                          label: 'Dpto.',
-                          controller: _departamentoController,
-                          hintText: 'Departamento',
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                          label: 'Documento (CI)',
+                          controller: _ciController,
+                          hintText: 'Ingresar CI sin puntos ni guiones',
+                          prefixIcon: Icons.badge_rounded,
+                          keyboardType: TextInputType.number,
+                          validator: Validators.document,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'Referencia',
-                    controller: _referenciaController,
-                    hintText: 'Ej: Detrás de la terminal...',
-                    prefixIcon: Icons.near_me_rounded,
+                      ],
+                    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 24),
+
+                    // Sección: Contacto
+                    _buildFormSection(
+                      context,
+                      title: 'COMUNICACIÓN',
+                      icon: Icons.contact_phone_rounded,
+                      children: [
+                        CustomTextField(
+                          label: 'Teléfono de contacto',
+                          controller: _telefonoController,
+                          hintText: 'Ej: 0981 123 456',
+                          prefixIcon: Icons.phone_android_rounded,
+                          keyboardType: TextInputType.phone,
+                          validator: Validators.phoneOptional,
+                        ),
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                          label: 'Correo Electrónico',
+                          controller: _emailController,
+                          hintText: 'ejemplo@correo.com (Opcional)',
+                          prefixIcon: Icons.alternate_email_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                      ],
+                    )
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: 100.ms)
+                        .slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 24),
+
+                    // Sección: Ubicación
+                    _buildFormSection(
+                      context,
+                      title: 'UBICACIÓN',
+                      icon: Icons.location_on_rounded,
+                      children: [
+                        CustomTextField(
+                          label: 'Dirección particular',
+                          controller: _direccionController,
+                          hintText: 'Calle, número de casa, etc.',
+                          prefixIcon: Icons.home_rounded,
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                label: 'Ciudad',
+                                controller: _ciudadController,
+                                hintText: 'Localidad',
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: CustomTextField(
+                                label: 'Dpto.',
+                                controller: _departamentoController,
+                                hintText: 'Departamento',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                          label: 'Referencia',
+                          controller: _referenciaController,
+                          hintText: 'Ej: Detrás de la terminal...',
+                          prefixIcon: Icons.near_me_rounded,
+                        ),
+                      ],
+                    )
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: 200.ms)
+                        .slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 24),
+
+                    // Sección: Otros
+                    _buildFormSection(
+                      context,
+                      title: 'OTROS DATOS',
+                      icon: Icons.more_horiz_rounded,
+                      children: [
+                        CustomTextField(
+                          label: 'Observaciones / Notas',
+                          controller: _notasController,
+                          hintText: 'Cualquier detalle relevante...',
+                          prefixIcon: Icons.note_rounded,
+                          maxLines: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.grey.shade200),
+                          ),
+                          child: SwitchListTile(
+                            title: const Text('Cliente Activo',
+                                style:
+                                    TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            subtitle: const Text('Controla si el cliente puede operar',
+                                style: TextStyle(fontSize: 12)),
+                            value: _activo,
+                            onChanged: (value) => setState(() => _activo = value),
+                            activeColor: AppTheme.primaryBrand,
+                          ),
+                        ),
+                      ],
+                    )
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: 300.ms)
+                        .slideY(begin: 0.1, end: 0),
+                  ],
+                ),
+              ),
+            ),
+
+            // Botones de acción fijos en la parte inferior
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              decoration: BoxDecoration(
+                color: isDark ? theme.scaffoldBackgroundColor : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
                   ),
                 ],
-              ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
-
-              const SizedBox(height: 24),
-
-              // Sección: Otros
-              _buildFormSection(
-                context,
-                title: 'OTROS DATOS',
-                icon: Icons.more_horiz_rounded,
-                children: [
-                  CustomTextField(
-                    label: 'Observaciones / Notas',
-                    controller: _notasController,
-                    hintText: 'Cualquier detalle relevante...',
-                    prefixIcon: Icons.note_rounded,
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
-                    ),
-                    child: SwitchListTile(
-                      title: const Text('Cliente Activo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Controla si el cliente puede operar', style: TextStyle(fontSize: 12)),
-                      value: _activo,
-                      onChanged: (value) => setState(() => _activo = value),
-                      activeColor: AppTheme.primaryBrand,
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideY(begin: 0.1, end: 0),
-
-              const SizedBox(height: 40),
-
-              // Botones de acción
-              Row(
+              ),
+              child: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _isLoading ? null : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: const Text('CANCELAR', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('CANCELAR',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -314,24 +349,25 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
                         backgroundColor: AppTheme.primaryBrand,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
                       child: _isLoading
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
                             )
-                          : Text(_isEditMode ? 'ACTUALIZAR' : 'REGISTRAR', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          : Text(_isEditMode ? 'ACTUALIZAR' : 'REGISTRAR',
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
-              ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
-              
-              const SizedBox(height: 20),
-            ],
-          ),
+              ),
+            ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
+          ],
         ),
       ),
     );

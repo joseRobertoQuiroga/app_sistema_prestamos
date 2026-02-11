@@ -48,7 +48,7 @@ class ClientesListScreen extends ConsumerWidget {
         children: [
           // Header Gradient Background
           Container(
-            height: MediaQuery.of(context).size.height * 0.35,
+            height: 240,
             decoration: const BoxDecoration(
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),

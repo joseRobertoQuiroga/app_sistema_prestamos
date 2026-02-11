@@ -19,9 +19,6 @@ class DeleteCliente {
   /// Returns:
   ///   - Right(void): Éxito en la eliminación
   ///   - Left(Failure): Error si falla la validación o eliminación
-  /// 
-  /// Note: En producción, se debería verificar que el cliente
-  /// no tenga préstamos activos antes de eliminarlo.
   Future<Either<Failure, void>> call(int id) async {
     // Validar ID
     if (id <= 0) {
@@ -36,10 +33,23 @@ class DeleteCliente {
         'No se encontró el cliente con ID $id'
       )),
       (cliente) async {
-        // TODO: En el futuro, verificar que no tenga préstamos activos
-        // Por ahora, procedemos con la eliminación
+        // ✅ VALIDACIÓN CRÍTICA: Verificar préstamos activos
+        final tienePrestamosResult = await repository.clienteTienePrestamosActivos(id);
         
-        return await repository.deleteCliente(id);
+        return tienePrestamosResult.fold(
+          (failure) => Left(failure),
+          (tienePrestamos) async {
+            if (tienePrestamos) {
+              return Left(ValidationFailure(
+                'No se puede eliminar el cliente porque tiene préstamos activos o en mora. '
+                'Por favor, cancele o finalice los préstamos antes de eliminar el cliente.'
+              ));
+            }
+            
+            // Si no tiene préstamos activos, proceder con la eliminación
+            return await repository.deleteCliente(id);
+          },
+        );
       },
     );
   }

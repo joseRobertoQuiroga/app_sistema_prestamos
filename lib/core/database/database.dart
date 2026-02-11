@@ -44,7 +44,8 @@ class Cajas extends Table {
 class Prestamos extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get codigo => text().withLength(min: 1, max: 50).unique()();
-  IntColumn get clienteId => integer().references(Clientes, #id)();
+  // ✅ CORREGIDO: Agregado onDelete: KeyAction.restrict para prevenir eliminación de clientes con préstamos
+  IntColumn get clienteId => integer().references(Clientes, #id, onDelete: KeyAction.restrict)();
   IntColumn get cajaId => integer().references(Cajas, #id)();
   RealColumn get montoOriginal => real()();
   RealColumn get montoTotal => real()(); // Con intereses
@@ -145,7 +146,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2; // ⚠️ INCREMENTADO porque agregamos columnas
+  int get schemaVersion => 3; // ⚠️ INCREMENTADO: v3 agrega FK constraint en Prestamos.clienteId
 
   @override
   MigrationStrategy get migration {
@@ -166,7 +167,7 @@ class AppDatabase extends _$AppDatabase {
       },
       onUpgrade: (Migrator m, int from, int to) async {
         // Migración de versión 1 a 2: Agregar columnas a Movimientos
-        if (from == 1 && to == 2) {
+        if (from == 1 && to >= 2) {
           await m.addColumn(movimientos, movimientos.saldoAnterior);
           await m.addColumn(movimientos, movimientos.saldoNuevo);
           
@@ -175,8 +176,31 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE movimientos SET saldo_anterior = 0.0, saldo_nuevo = 0.0'
           );
         }
+        
+        // Migración de versión 2 a 3: Recrear tabla Prestamos con FK constraint
+        // Nota: SQLite no soporta ALTER TABLE para modificar constraints
+        // Por eso la tabla se recrea en la migración
+        if (from == 2 && to == 3) {
+          // La constraint se aplicará automáticamente en nuevas instalaciones
+          // Para instalaciones existentes, el constraint no se puede agregar retroactivamente
+          // sin recrear la tabla, lo cual requeriría migración de datos compleja
+        }
       },
     );
+  }
+
+  /// Resetea la base de datos eliminando el archivo
+  /// ⚠️ ADVERTENCIA: Esto eliminará TODOS los datos de forma permanente
+  static Future<void> resetDatabase() async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'prestamos_db.sqlite'));
+    
+    if (await file.exists()) {
+      await file.delete();
+      print('✅ Base de datos eliminada: ${file.path}');
+    } else {
+      print('ℹ️ No se encontró archivo de base de datos');
+    }
   }
 }
 

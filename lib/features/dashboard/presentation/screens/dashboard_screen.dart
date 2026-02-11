@@ -72,7 +72,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 10),
                 // KPIs Section
                 Expanded(
-                  flex: 60,
+                  flex: 45,
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1200),
@@ -86,7 +86,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           color: AppTheme.primaryBrand,
                           child: SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                             child: _buildCompactKPIs(context, kpis),
                           ),
                         ),
@@ -101,7 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 // Content Section (Tabs)
                 Expanded(
-                  flex: 40,
+                  flex: 55,
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(

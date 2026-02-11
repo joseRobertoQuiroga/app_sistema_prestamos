@@ -16,6 +16,7 @@ import '../../features/caja/presentation/screens/transferencia_screen.dart';
 import '../../features/pagos/presentation/screens/registrar_pago_screen.dart';
 import '../../features/pagos/presentation/screens/pagos_list_screen.dart'; // ✅ NUEVO
 import '../../features/reportes/presentation/screens/reportes_main_screen.dart';
+import '../../features/ayuda/presentation/screens/ayuda_screen.dart';
 import '../../presentation/widgets/app_drawer.dart';
 
 class AppRouter {
@@ -36,6 +37,7 @@ class AppRouter {
   static const String transferencia = '/transferencias';
   static const String movimientos = '/movimientos';
   static const String reportes = '/reportes';
+  static const String ayuda = '/ayuda';
 
   static final GoRouter router = GoRouter(
     initialLocation: dashboard,
@@ -238,6 +240,16 @@ class AppRouter {
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: const ReportesScreen(),
+        ),
+      ),
+
+      // Ayuda
+      GoRoute(
+        path: ayuda,
+        name: 'ayuda',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const AyudaScreen(),
         ),
       ),
     ],

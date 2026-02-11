@@ -88,4 +88,14 @@ abstract class ClienteRepository {
   ///   - Right(List<Cliente>): Lista de clientes activos
   ///   - Left(Failure): Error si falla
   Future<Either<Failure, List<Cliente>>> getClientesActivos();
+
+  /// Verifica si un cliente tiene préstamos activos
+  /// 
+  /// Parameters:
+  ///   - clienteId: ID del cliente a verificar
+  /// 
+  /// Returns:
+  ///   - Right(bool): true si tiene préstamos activos, false si no
+  ///   - Left(Failure): Error si falla la verificación
+  Future<Either<Failure, bool>> clienteTienePrestamosActivos(int clienteId);
 }

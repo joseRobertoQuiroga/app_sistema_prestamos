@@ -195,136 +195,159 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator()) 
-        : Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-              children: [
-                // SECCIÓN: CLIENTE Y CAJA
-                _buildFormSection(
-                  context,
-                  title: 'IDENTIFICACIÓN Y ORIGEN',
-                  icon: Icons.account_balance_rounded,
-                  children: [
-                    _buildClienteSelector(clientesAsync),
-                    const SizedBox(height: 16),
-                    _buildCajaSelector(cajasAsync),
-                  ],
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+                      children: [
+                        // SECCIÓN: CLIENTE Y CAJA
+                        _buildFormSection(
+                          context,
+                          title: 'IDENTIFICACIÓN Y ORIGEN',
+                          icon: Icons.account_balance_rounded,
+                          children: [
+                            _buildClienteSelector(clientesAsync),
+                            const SizedBox(height: 16),
+                            _buildCajaSelector(cajasAsync),
+                          ],
+                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
-                const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                // SECCIÓN: CONDICIONES
-                _buildFormSection(
-                  context,
-                  title: 'CONDICIONES DEL PRÉSTAMO',
-                  icon: Icons.monetization_on_rounded,
-                  children: [
-                    CustomTextField(
-                      controller: _montoController,
-                      label: 'Monto Principal',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: Icons.attach_money_rounded,
-                      validator: (v) => Validators.amount(v),
+                        // SECCIÓN: CONDICIONES
+                        _buildFormSection(
+                          context,
+                          title: 'CONDICIONES DEL PRÉSTAMO',
+                          icon: Icons.monetization_on_rounded,
+                          children: [
+                            CustomTextField(
+                              controller: _montoController,
+                              label: 'Monto Principal',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.attach_money_rounded,
+                              validator: (v) => Validators.amount(v),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CustomTextField(
+                                    controller: _tasaController,
+                                    label: 'Tasa/Año (%)',
+                                    keyboardType: TextInputType.number,
+                                    prefixIcon: Icons.percent_rounded,
+                                    validator: (v) => Validators.interestRate(v),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: CustomTextField(
+                                    controller: _plazoController,
+                                    label: 'Plazo (Meses)',
+                                    keyboardType: TextInputType.number,
+                                    prefixIcon: Icons.calendar_month_rounded,
+                                    validator: (v) => Validators.termMonths(v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTipoInteresSelector(),
+                            const SizedBox(height: 16),
+                            _buildFechaInicioSelector(),
+                          ],
+                        ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
+
+                        const SizedBox(height: 24),
+
+                        // SECCIÓN: RESULTADOS
+                        if (_totalesCalculados != null) ...[
+                          _buildFormSection(
+                            context,
+                            title: 'CÁLCULO ESTIMADO',
+                            icon: Icons.calculate_rounded,
+                            children: [
+                              _buildResumenCalculado(),
+                              const SizedBox(height: 16),
+                              CustomButton(
+                                text: _mostrarVistaPrevia
+                                    ? 'OCULTAR TABLA'
+                                    : 'VER TABLA DE AMORTIZACIÓN',
+                                type: ButtonType.text,
+                                onPressed: () => setState(
+                                    () => _mostrarVistaPrevia = !_mostrarVistaPrevia),
+                              ),
+                              if (_mostrarVistaPrevia && _vistaPrevia != null)
+                                TablaAmortizacionWidget(
+                                    cuotas: _vistaPrevia!, compact: true),
+                            ],
+                          ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // SECCIÓN: NOTAS
+                        _buildFormSection(
+                          context,
+                          title: 'INFORMACIÓN ADICIONAL',
+                          icon: Icons.notes_rounded,
+                          children: [
+                            CustomTextField(
+                              controller: _observacionesController,
+                              label: 'Observaciones',
+                              hintText: 'Cualquier detalle relevante...',
+                              maxLines: 3,
+                              prefixIcon: Icons.comment_rounded,
+                            ),
+                          ],
+                        ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    Row(
+                  ),
+
+                  // BOTONES FIJOS
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? theme.scaffoldBackgroundColor
+                          : Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
                       children: [
                         Expanded(
-                          child: CustomTextField(
-                            controller: _tasaController,
-                            label: 'Tasa/Año (%)',
-                            keyboardType: TextInputType.number,
-                            prefixIcon: Icons.percent_rounded,
-                            validator: (v) => Validators.interestRate(v),
+                          child: CustomButton(
+                            text: 'CANCELAR',
+                            type: ButtonType.outlined,
+                            onPressed: () => Navigator.pop(context),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: CustomTextField(
-                            controller: _plazoController,
-                            label: 'Plazo (Meses)',
-                            keyboardType: TextInputType.number,
-                            prefixIcon: Icons.calendar_month_rounded,
-                            validator: (v) => Validators.termMonths(v),
+                          flex: 2,
+                          child: CustomButton(
+                            text: 'CREAR PRÉSTAMO',
+                            onPressed: _guardarPrestamo,
+                            isLoading: _isLoading,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    _buildTipoInteresSelector(),
-                    const SizedBox(height: 16),
-                    _buildFechaInicioSelector(),
-                  ],
-                ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-
-                const SizedBox(height: 24),
-
-                // SECCIÓN: RESULTADOS
-                if (_totalesCalculados != null) ...[
-                  _buildFormSection(
-                    context,
-                    title: 'CÁLCULO ESTIMADO',
-                    icon: Icons.calculate_rounded,
-                    children: [
-                      _buildResumenCalculado(),
-                      const SizedBox(height: 16),
-                      CustomButton(
-                        text: _mostrarVistaPrevia ? 'OCULTAR TABLA' : 'VER TABLA DE AMORTIZACIÓN',
-                        type: ButtonType.text,
-                        onPressed: () => setState(() => _mostrarVistaPrevia = !_mostrarVistaPrevia),
-                      ),
-                      if (_mostrarVistaPrevia && _vistaPrevia != null) 
-                        TablaAmortizacionWidget(cuotas: _vistaPrevia!, compact: true),
-                    ],
-                  ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                  const SizedBox(height: 24),
+                  ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
                 ],
-
-                // SECCIÓN: NOTAS
-                _buildFormSection(
-                  context,
-                  title: 'INFORMACIÓN ADICIONAL',
-                  icon: Icons.notes_rounded,
-                  children: [
-                    CustomTextField(
-                      controller: _observacionesController,
-                      label: 'Observaciones',
-                      hintText: 'Cualquier detalle relevante...',
-                      maxLines: 3,
-                      prefixIcon: Icons.comment_rounded,
-                    ),
-                  ],
-                ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
-
-                const SizedBox(height: 40),
-
-                // BOTONES
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomButton(
-                        text: 'CANCELAR',
-                        type: ButtonType.outlined,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: CustomButton(
-                        text: 'CREAR PRÉSTAMO',
-                        onPressed: _guardarPrestamo,
-                        isLoading: _isLoading,
-                      ),
-                    ),
-                  ],
-                ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-              ],
+              ),
             ),
-          ),
     );
   }
 
