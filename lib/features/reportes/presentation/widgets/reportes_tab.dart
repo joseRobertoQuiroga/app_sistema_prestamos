@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:open_file/open_file.dart';
 import '../providers/reportes_provider.dart';
 import '../widgets/reporte_card.dart';
 import '../../domain/entities/reportes_entities.dart';
@@ -117,9 +118,10 @@ class ReportesTab extends ConsumerWidget {
                     childAspectRatio: 1.1,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
+                      // 1. Cartera Activa
                       ReporteCard(
                         titulo: 'Cartera',
-                        descripcion: 'Préstamos activos',
+                        descripcion: 'Listado completo de préstamos activos con saldos pendientes',
                         icono: Icons.account_balance_wallet,
                         color: Colors.blue,
                         onTap: () => _generarReporte(
@@ -127,43 +129,94 @@ class ReportesTab extends ConsumerWidget {
                           ref,
                           TipoReporte.carteraCompleta,
                         ),
-                      ).animate().fadeIn(duration: 300.ms, delay: 0.ms).scale(begin: const Offset(0.8, 0.8)),
+                      ).animate().fadeIn(delay: 0.ms).scale(),
                       
+                      // 2. Mora
                       ReporteCard(
                         titulo: 'Mora',
-                        descripcion: 'Pagos vencidos',
+                        descripcion: 'Préstamos vencidos con detalle de cuotas atrasadas',
                         icono: Icons.warning_amber,
-                        color: Colors.orange,
+                        color: Colors.red,
                         onTap: () => _generarReporte(
                           context,
                           ref,
                           TipoReporte.moraDetallada,
                         ),
-                      ).animate().fadeIn(duration: 300.ms, delay: 50.ms).scale(begin: const Offset(0.8, 0.8)),
-                      
+                      ).animate().fadeIn(delay: 50.ms).scale(),
+
+                      // 3. Proyección
                       ReporteCard(
-                        titulo: 'Cajas',
-                        descripcion: 'Movimientos',
-                        icono: Icons.account_balance,
-                        color: Colors.green,
+                        titulo: 'Proyección',
+                        descripcion: 'Calendario de cobros y vencimientos próximos',
+                        icono: Icons.calendar_today,
+                        color: Colors.teal,
                         onTap: () => _generarReporte(
                           context,
                           ref,
-                          TipoReporte.movimientosCaja,
+                          TipoReporte.proyeccionCobros,
                         ),
-                      ).animate().fadeIn(duration: 300.ms, delay: 100.ms).scale(begin: const Offset(0.8, 0.8)),
+                      ).animate().fadeIn(delay: 100.ms).scale(),
                       
+                      // 4. Pagos
                       ReporteCard(
                         titulo: 'Pagos',
-                        descripcion: 'Historial',
+                        descripcion: 'Historial completo de pagos recibidos y aplicados',
                         icono: Icons.payment,
-                        color: Colors.purple,
+                        color: Colors.green,
                         onTap: () => _generarReporte(
                           context,
                           ref,
                           TipoReporte.resumenPagos,
                         ),
-                      ).animate().fadeIn(duration: 300.ms, delay: 150.ms).scale(begin: const Offset(0.8, 0.8)),
+                      ).animate().fadeIn(delay: 150.ms).scale(),
+
+                      // 5. Cajas
+                      ReporteCard(
+                        titulo: 'Cajas',
+                        descripcion: 'Movimientos de ingresos y egresos por caja',
+                        icono: Icons.point_of_sale,
+                        color: Colors.orange,
+                        onTap: () => _generarReporte(
+                          context,
+                          ref,
+                          TipoReporte.movimientosCaja,
+                        ),
+                      ).animate().fadeIn(delay: 200.ms).scale(),
+
+                      // 6. Cancelados
+                      ReporteCard(
+                        titulo: 'Cancelados',
+                        descripcion: 'Préstamos completamente pagados o cancelados',
+                        icono: Icons.check_circle_outline,
+                        color: Colors.grey,
+                        onTap: () => _generarReporte(
+                          context,
+                          ref,
+                          TipoReporte.prestamosCancelados,
+                        ),
+                      ).animate().fadeIn(delay: 250.ms).scale(),
+
+                      // 7. Rendimiento
+                      ReporteCard(
+                        titulo: 'Rendimiento',
+                        descripcion: 'Análisis de rentabilidad e intereses generados',
+                        icono: Icons.trending_up,
+                        color: Colors.purple,
+                        onTap: () => _generarReporte(
+                          context,
+                          ref,
+                          TipoReporte.rendimientoCartera,
+                        ),
+                      ).animate().fadeIn(delay: 300.ms).scale(),
+
+                      // 8. Estado de Cuenta (Requiere cliente)
+                      ReporteCard(
+                        titulo: 'Estado Cta.',
+                        descripcion: 'Resumen detallado de préstamos por cliente',
+                        icono: Icons.person_search,
+                        color: Colors.indigo,
+                        onTap: () => _seleccionarClienteYGenerar(context, ref),
+                      ).animate().fadeIn(delay: 350.ms).scale(),
                     ],
                   ),
           ),
@@ -215,8 +268,18 @@ class ReportesTab extends ConsumerWidget {
                 action: SnackBarAction(
                   label: 'Abrir',
                   textColor: Colors.white,
-                  onPressed: () {
-                    // TODO: Abrir archivo con open_file
+                  onPressed: () async {
+                    final result = await OpenFile.open(resultado.rutaArchivo);
+                    if (result.type != ResultType.done) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('No se pudo abrir el archivo: ${result.message}'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    }
                   },
                 ),
                 duration: const Duration(seconds: 5),
@@ -250,5 +313,24 @@ class ReportesTab extends ConsumerWidget {
       default:
         return PeriodoReporte.ultimoMes;
     }
+  }
+
+  Future<void> _seleccionarClienteYGenerar(BuildContext context, WidgetRef ref) async {
+    // Navegar a selección de cliente (reutilizando pantalla de búsqueda o diálogo)
+    // Por simplicidad en este paso, pedimos ID o mostramos "Selección pendiente"
+    // Idealmente: pushNamed('seleccionar-cliente') y esperar resultado.
+    
+    // TODO: Implementar selector real. Por ahora usaremos un diálogo simple.
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reporte por Cliente'),
+        content: const Text('Para este reporte se necesita seleccionar un cliente específico. \n\n(Funcionalidad de selector en desarrollo)'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          // ElevatedButton(onPressed: () {}, child: Text('Seleccionar')),
+        ],
+      ),
+    );
   }
 }

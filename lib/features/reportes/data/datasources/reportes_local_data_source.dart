@@ -172,6 +172,136 @@ class ReportesLocalDataSource {
   }
 
   // =========================================================================
+  // ✅ NUEVOS REPORTES
+  // =========================================================================
+
+  Future<String> generarReporteEstadoCuenta(ConfiguracionReporte config) async {
+    if (config.clienteId == null) throw Exception('Debe seleccionar un cliente');
+
+    final rango = config.getRango();
+    
+    // Obtener movimientos del cliente (préstamos y pagos)
+    final prestamos = await (database.select(database.prestamos)
+          ..where((tbl) => tbl.clienteId.equals(config.clienteId!))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.fechaRegistro)]))
+        .get();
+
+    final pagos = await (database.select(database.pagos)
+          ..where((tbl) => tbl.clienteId.equals(config.clienteId!))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.fechaPago)]))
+        .get();
+
+    // Unificar y ordenar cronológicamente
+    final items = <excel_svc.ItemEstadoCuenta>[];
+    double saldoAcumulado = 0;
+
+    for (final p in prestamos) {
+      saldoAcumulado += p.montoTotal;
+      items.add(excel_svc.ItemEstadoCuenta(
+        fecha: p.fechaInicio,
+        concepto: 'Préstamo ${p.codigo}',
+        monto: p.montoTotal, // Cargo positivo
+        saldo: saldoAcumulado,
+        tipo: 'CARGO',
+      ));
+    }
+
+    for (final p in pagos) {
+      saldoAcumulado -= p.montoPago;
+      items.add(excel_svc.ItemEstadoCuenta(
+        fecha: p.fechaPago,
+        concepto: 'Pago ${p.codigo} (${p.metodoPago})',
+        monto: -p.montoPago, // Abono negativo
+        saldo: saldoAcumulado,
+        tipo: 'ABONO',
+      ));
+    }
+
+    items.sort((a, b) => a.fecha.compareTo(b.fecha));
+
+    if (config.formato == FormatoReporte.pdf) {
+      throw Exception('Formato PDF no implementado para este reporte');
+    } else {
+      return await excelService.exportarEstadoCuentaCliente(items);
+    }
+  }
+
+  Future<String> generarReporteProyeccion(ConfiguracionReporte config) async {
+    final rango = config.getRango();
+    
+    // Obtener cuotas pendientes en el rango
+    final query = database.select(database.cuotas).join([
+      leftOuterJoin(database.prestamos, database.prestamos.id.equalsExp(database.cuotas.prestamoId)),
+      leftOuterJoin(database.clientes, database.clientes.id.equalsExp(database.prestamos.clienteId)),
+    ])..where(
+        database.cuotas.estado.equals('PENDIENTE') &
+        database.cuotas.fechaVencimiento.isBiggerOrEqualValue(rango.start) &
+        database.cuotas.fechaVencimiento.isSmallerOrEqualValue(rango.end)
+      )..orderBy([OrderingTerm.asc(database.cuotas.fechaVencimiento)]);
+
+    final results = await query.get();
+
+    final items = results.map((row) {
+      final cuota = row.readTable(database.cuotas);
+      final prestamo = row.readTable(database.prestamos);
+      final cliente = row.readTable(database.clientes);
+
+      // Calcular mora estimada si ya venció
+      double moraEst = 0;
+      if (cuota.fechaVencimiento.isBefore(DateTime.now())) {
+        final diasAtraso = DateTime.now().difference(cuota.fechaVencimiento).inDays;
+        // Lógica simple de mora: 0.5% por día (ejemplo, ajustar según negocio)
+        moraEst = cuota.saldoPendiente * 0.005 * diasAtraso;
+      }
+
+      return excel_svc.ItemProyeccion(
+        fechaVencimiento: cuota.fechaVencimiento,
+        nombreCliente: '${cliente.nombres} ${cliente.apellidos}',
+        codigoPrestamo: prestamo.codigo,
+        numeroCuota: cuota.numeroCuota,
+        montoCuota: cuota.montoCuota,
+        moraEstimada: moraEst,
+        totalCobrar: cuota.saldoPendiente + moraEst, // Aproximado
+      );
+    }).toList();
+
+    return await excelService.exportarProyeccionCobros(items);
+  }
+
+  Future<String> generarReporteCancelados(ConfiguracionReporte config) async {
+    final rango = config.getRango();
+    final prestamos = await _getPrestamosConJoin(rango.start, rango.end);
+    
+    // Filtrar pagados o cancelados
+    final cancelados = prestamos.where((p) => p.estado == 'PAGADO' || p.estado == 'CANCELADO').toList();
+
+    return await excelService.exportarPrestamosCancelados(cancelados);
+  }
+
+  Future<String> generarReporteRendimiento(ConfiguracionReporte config) async {
+    final rango = config.getRango();
+    final pagos = await (database.select(database.pagos)
+          ..where((tbl) =>
+              tbl.fechaPago.isBiggerOrEqualValue(rango.start) &
+              tbl.fechaPago.isSmallerOrEqualValue(rango.end)))
+        .get();
+
+    final interesCobrado = pagos.fold<double>(0, (sum, p) => sum + p.montoInteres);
+    final moraCobrada = pagos.fold<double>(0, (sum, p) => sum + p.montoMora);
+    final capitalRecuperado = pagos.fold<double>(0, (sum, p) => sum + p.montoCapital);
+
+    final datos = {
+      'Capital Recuperado': capitalRecuperado,
+      'Interés Ganado': interesCobrado,
+      'Mora Cobrada': moraCobrada,
+      'Total Ingresos Financieros': interesCobrado + moraCobrada,
+      'Total Recaudado': capitalRecuperado + interesCobrado + moraCobrada,
+    };
+
+    return await excelService.exportarRendimientoCartera(datos);
+  }
+
+  // =========================================================================
   // EXPORTACIÓN (sin cambios)
   // =========================================================================
 

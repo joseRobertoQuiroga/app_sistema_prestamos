@@ -13,6 +13,7 @@ import '../../features/caja/presentation/screens/caja_detail_screen.dart';
 import '../../features/caja/presentation/screens/registrar_ingreso_screen.dart';
 import '../../features/caja/presentation/screens/registrar_egreso_screen.dart';
 import '../../features/caja/presentation/screens/transferencia_screen.dart';
+import '../../features/caja/presentation/screens/movimientos_generales_screen.dart';
 import '../../features/pagos/presentation/screens/registrar_pago_screen.dart';
 import '../../features/pagos/presentation/screens/pagos_list_screen.dart'; // ✅ NUEVO
 import '../../features/reportes/presentation/screens/reportes_main_screen.dart';
@@ -229,7 +230,7 @@ class AppRouter {
         name: 'movimientos',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const PlaceholderWithDrawer(title: 'Movimientos Generales'),
+          child: const MovimientosGeneralesScreen(),
         ),
       ),
 

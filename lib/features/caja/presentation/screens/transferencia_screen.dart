@@ -6,6 +6,8 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../presentation/widgets/custom_text_field.dart';
 import '../../../../presentation/widgets/custom_button.dart';
+import '../../../../presentation/widgets/app_drawer.dart';
+import 'package:go_router/go_router.dart';
 
 class TransferenciaScreen extends ConsumerStatefulWidget {
   final int? cajaOrigenId;
@@ -96,7 +98,11 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
           _showSuccess(
             'Transferencia realizada: ${Formatters.formatCurrency(double.parse(_montoController.text))}'
           );
-          Navigator.pop(context, true);
+          if (context.canPop()) {
+            context.pop(true);
+          } else {
+            context.go('/cajas');
+          }
         },
       );
     } catch (e) {
@@ -131,6 +137,7 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
       appBar: AppBar(
         title: const Text('Transferencia entre Cajas'),
       ),
+      drawer: const AppDrawer(),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -275,7 +282,13 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
                   child: CustomButton(
                     text: 'Cancelar',
                     type: ButtonType.outlined,
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/cajas');
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),

@@ -198,6 +198,126 @@ class ExcelService {
     return await _guardarArchivo(excel, 'Movimientos');
   }
 
+  /// Exporta estado de cuenta de cliente
+  Future<String> exportarEstadoCuentaCliente(List<dynamic> datos) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['EstadoCuenta'];
+
+    // Encabezados
+    final headers = [
+      'Fecha',
+      'Concepto',
+      'Monto',
+      'Saldo',
+      'TipoTransaccion',
+    ];
+
+    _addHeaders(sheet, headers);
+
+    // Datos
+    for (final item in datos) {
+      // Adaptar según la estructura final que definamos
+      sheet.appendRow([
+        TextCellValue(_dateFormat.format(item.fecha)),
+        TextCellValue(item.concepto),
+        DoubleCellValue(item.monto),
+        DoubleCellValue(item.saldo),
+        TextCellValue(item.tipo),
+      ]);
+    }
+
+    _autoFitColumns(sheet, headers.length);
+    return await _guardarArchivo(excel, 'EstadoCuenta');
+  }
+
+  /// Exporta proyección de cobros
+  Future<String> exportarProyeccionCobros(List<dynamic> cuotas) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['ProyeccionCobros'];
+
+    final headers = [
+      'Fecha Vencimiento',
+      'Cliente',
+      'Préstamo',
+      'Cuota #',
+      'Monto Cuota',
+      'Interés Mora (Est.)',
+      'Total a Cobrar',
+    ];
+
+    _addHeaders(sheet, headers);
+
+    for (final c in cuotas) {
+      sheet.appendRow([
+        TextCellValue(_dateFormat.format(c.fechaVencimiento)),
+        TextCellValue(c.nombreCliente),
+        TextCellValue(c.codigoPrestamo),
+        IntCellValue(c.numeroCuota),
+        DoubleCellValue(c.montoCuota),
+        DoubleCellValue(c.moraEstimada),
+        DoubleCellValue(c.totalCobrar),
+      ]);
+    }
+
+    _autoFitColumns(sheet, headers.length);
+    return await _guardarArchivo(excel, 'ProyeccionCobros');
+  }
+
+  /// Exporta préstamos cancelados
+  Future<String> exportarPrestamosCancelados(List<Prestamo> prestamos) async {
+    // Reutilizamos la lógica de préstamos pero con archivo diferente
+    final excel = Excel.createExcel();
+    final sheet = excel['PrestamosCancelados'];
+
+    final headers = [
+      'Código',
+      'Cliente',
+      'Monto Original',
+      'Monto Pagado',
+      'Ganancia',
+      'Fecha Inicio',
+      'Fecha Fin',
+      'Estado',
+    ];
+
+    _addHeaders(sheet, headers);
+
+    for (final p in prestamos) {
+      sheet.appendRow([
+        TextCellValue(p.codigo),
+        TextCellValue(p.nombreCliente ?? 'N/A'),
+        DoubleCellValue(p.montoOriginal),
+        DoubleCellValue(p.montoTotal), // Usamos esto como pagado total aprox
+        DoubleCellValue(p.montoTotal - p.montoOriginal), // Ganancia aprox
+        TextCellValue(_dateFormat.format(p.fechaInicio)),
+        TextCellValue(_dateFormat.format(p.fechaVencimiento)), // Fecha fin real
+        TextCellValue(p.estado),
+      ]);
+    }
+
+    _autoFitColumns(sheet, headers.length);
+    return await _guardarArchivo(excel, 'PrestamosCancelados');
+  }
+
+  /// Exporta rendimiento de cartera
+  Future<String> exportarRendimientoCartera(Map<String, double> datos) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Rendimiento'];
+
+    final headers = ['Concepto', 'Monto'];
+    _addHeaders(sheet, headers);
+
+    datos.forEach((key, value) {
+      sheet.appendRow([
+        TextCellValue(key),
+        DoubleCellValue(value),
+      ]);
+    });
+
+    _autoFitColumns(sheet, 2);
+    return await _guardarArchivo(excel, 'RendimientoCartera');
+  }
+
   // =========================================================================
   // GENERACIÓN DE PLANTILLAS
   // =========================================================================
@@ -485,5 +605,41 @@ class Movimiento {
     required this.descripcion,
     required this.fecha,
     required this.fechaRegistro,
+  });
+}
+
+class ItemEstadoCuenta {
+  final DateTime fecha;
+  final String concepto;
+  final double monto;
+  final double saldo;
+  final String tipo;
+
+  ItemEstadoCuenta({
+    required this.fecha,
+    required this.concepto,
+    required this.monto,
+    required this.saldo,
+    required this.tipo,
+  });
+}
+
+class ItemProyeccion {
+  final DateTime fechaVencimiento;
+  final String nombreCliente;
+  final String codigoPrestamo;
+  final int numeroCuota;
+  final double montoCuota;
+  final double moraEstimada;
+  final double totalCobrar;
+
+  ItemProyeccion({
+    required this.fechaVencimiento,
+    required this.nombreCliente,
+    required this.codigoPrestamo,
+    required this.numeroCuota,
+    required this.montoCuota,
+    required this.moraEstimada,
+    required this.totalCobrar,
   });
 }

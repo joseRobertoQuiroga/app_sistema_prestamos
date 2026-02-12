@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import '../../domain/entities/cuota.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../config/theme/app_theme.dart';
+import 'package:open_file/open_file.dart';
+import '../../../reportes/data/services/pdf_service.dart';
+import '../../domain/entities/prestamo.dart';
 
 class TablaAmortizacionWidget extends StatelessWidget {
   final List<Cuota> cuotas;
+  final Prestamo? prestamo;
   final bool showOnlyPending;
   final bool compact;
 
   const TablaAmortizacionWidget({
     super.key,
     required this.cuotas,
+    this.prestamo,
     this.showOnlyPending = false,
     this.compact = false,
   });
@@ -45,7 +50,7 @@ class TablaAmortizacionWidget extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              if (!compact)
+              if (!compact && prestamo != null)
                 TextButton.icon(
                   onPressed: () => _exportarPDF(context),
                   icon: const Icon(Icons.picture_as_pdf),
@@ -65,6 +70,41 @@ class TablaAmortizacionWidget extends StatelessWidget {
         _buildTotales(context, cuotasFiltradas),
       ],
     );
+  }
+
+  // ... rest of the code ...
+
+  Future<void> _exportarPDF(BuildContext context) async {
+    try {
+      if (prestamo == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay información del préstamo para generar el PDF')),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generando PDF...')),
+      );
+
+      final pdfService = PdfService();
+      final path = await pdfService.generarTablaAmortizacion(
+        cuotas: cuotas,
+        prestamo: prestamo,
+      );
+
+      await OpenFile.open(path);
+
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al generar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildFullTable(BuildContext context, List<Cuota> cuotas) {
@@ -290,12 +330,5 @@ class TablaAmortizacionWidget extends StatelessWidget {
     return AppTheme.getEstadoCuotaColor(estado.toStorageString());
   }
 
-  void _exportarPDF(BuildContext context) {
-    // TODO: Implementar exportación a PDF
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Exportación a PDF en desarrollo'),
-      ),
-    );
-  }
+
 }

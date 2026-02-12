@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_file/open_file.dart';
 import '../providers/reportes_provider.dart';
 import '../../domain/entities/reportes_entities.dart';
 
@@ -225,8 +226,18 @@ class ExportarWidget extends ConsumerWidget {
                 action: SnackBarAction(
                   label: 'Abrir',
                   textColor: Colors.white,
-                  onPressed: () {
-                    // TODO: Abrir archivo con open_file
+                  onPressed: () async {
+                    final result = await OpenFile.open(rutaArchivo);
+                    if (result.type != ResultType.done) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('No se pudo abrir el archivo: ${result.message}'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    }
                   },
                 ),
                 duration: const Duration(seconds: 5),

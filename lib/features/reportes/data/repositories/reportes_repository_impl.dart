@@ -36,16 +36,20 @@ class ReportesRepositoryImpl implements ReportesRepository {
           break;
 
         case TipoReporte.estadoCuentaCliente:
-          // TODO: Implementar
-          return Left(
-            ServerFailure('Reporte de estado de cuenta aún no implementado'),
-          );
+          rutaArchivo = await dataSource.generarReporteEstadoCuenta(configuracion);
+          break;
 
         case TipoReporte.proyeccionCobros:
-          // TODO: Implementar
-          return Left(
-            ServerFailure('Reporte de proyección de cobros aún no implementado'),
-          );
+          rutaArchivo = await dataSource.generarReporteProyeccion(configuracion);
+          break;
+
+        case TipoReporte.prestamosCancelados:
+          rutaArchivo = await dataSource.generarReporteCancelados(configuracion);
+          break;
+
+        case TipoReporte.rendimientoCartera:
+          rutaArchivo = await dataSource.generarReporteRendimiento(configuracion);
+          break;
       }
 
       // Extraer nombre del archivo de la ruta

@@ -285,6 +285,88 @@ class PdfService {
     return await _guardarPdf(pdf, 'Reporte_Pagos');
   }
 
+  /// Genera tabla de amortización en PDF
+  Future<String> generarTablaAmortizacion({
+    required List<dynamic> cuotas, // Usamos dynamic para evitar problemas de import circular si fuera el caso, pero lo ideal es tipar
+    required dynamic prestamo,
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.letter,
+        orientation: pw.PageOrientation.landscape,
+        build: (context) {
+          return [
+            _buildHeader('TABLA DE AMORTIZACIÓN'),
+            pw.SizedBox(height: 10),
+            
+            // Info del Préstamo
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Código: ${prestamo.codigo}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Cliente: ${prestamo.nombreCliente ?? "N/A"}'),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('Monto: ${_currencyFormat.format(prestamo.montoOriginal)}'),
+                    pw.Text('Interés: ${prestamo.tasaInteres}%'),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+
+            // Tabla
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey),
+              children: [
+                // Encabezados
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    _buildCelda('#', bold: true),
+                    _buildCelda('Fecha', bold: true),
+                    _buildCelda('Cuota', bold: true),
+                    _buildCelda('Capital', bold: true),
+                    _buildCelda('Interés', bold: true),
+                    _buildCelda('Saldo', bold: true),
+                    _buildCelda('Estado', bold: true),
+                  ],
+                ),
+                // Filas
+                ...cuotas.map((c) {
+                  return pw.TableRow(
+                    children: [
+                      _buildCelda(c.numeroCuota.toString()),
+                      _buildCelda(_dateFormat.format(c.fechaVencimiento)),
+                      _buildCelda(_currencyFormat.format(c.montoCuota)),
+                      _buildCelda(_currencyFormat.format(c.capital)),
+                      _buildCelda(_currencyFormat.format(c.interes)),
+                      _buildCelda(_currencyFormat.format(c.saldoPendiente)),
+                      _buildCelda(c.estado.toString().split('.').last.toUpperCase()),
+                    ],
+                  );
+                }).toList(),
+              ],
+            ),
+            
+            pw.SizedBox(height: 20),
+            _buildFooter(),
+          ];
+        },
+      ),
+    );
+
+    return await _guardarPdf(pdf, 'Amortizacion_${prestamo.codigo}');
+  }
+
   // =========================================================================
   // COMPONENTES DE CONSTRUCCIÓN
   // =========================================================================

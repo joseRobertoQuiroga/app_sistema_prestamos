@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../presentation/widgets/app_drawer.dart';
 
 /// Pantalla principal de Ayuda con instructivos y FAQ
 class AyudaScreen extends StatelessWidget {
@@ -24,6 +25,7 @@ class AyudaScreen extends StatelessWidget {
             ],
           ),
         ),
+        drawer: const AppDrawer(),
         body: const TabBarView(
           children: [
             _InstructivosTab(),
@@ -134,7 +136,9 @@ class _InstructivosTab extends StatelessWidget {
             '  • Cajas: Movimientos de dinero en cada caja',
             '  • Pagos: Historial de todos los pagos recibidos',
             'Presione el botón del reporte deseado',
-            'El sistema generará el archivo y le permitirá abrirlo',
+            '✅ Los archivos se guardan en la carpeta "Documentos" de Windows',
+            '✅ Haga clic en "Abrir" en el mensaje de éxito para verlo inmediatamente',
+            '⚠️ Necesita un lector de PDF para abrir reportes PDF',
           ],
         ),
         const SizedBox(height: 16),

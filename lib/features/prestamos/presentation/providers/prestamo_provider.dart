@@ -190,7 +190,9 @@ final prestamosFilteredProvider = Provider<AsyncValue<List<Prestamo>>>((ref) {
   return prestamosAsync.when(
     data: (prestamos) {
       if (estadoFiltro == null) {
-        return AsyncValue.data(prestamos);
+        // Excluir préstamos pagados de la vista principal
+        final filtered = prestamos.where((p) => p.estado != EstadoPrestamo.pagado).toList();
+        return AsyncValue.data(filtered);
       }
       final filtered = prestamos.where((p) => p.estado == estadoFiltro).toList();
       return AsyncValue.data(filtered);

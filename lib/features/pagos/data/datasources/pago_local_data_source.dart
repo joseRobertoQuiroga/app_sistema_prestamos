@@ -153,19 +153,23 @@ class PagoLocalDataSource {
       }
 
       // Actualizar la cuota
-      final nuevoMontoPagado = cuota.montoPagado + montoInteres;
-      final nuevaMora = (cuota.montoMora + montoMora) - montoMora; // Reset mora pagada
+      // ✅ CORREGIDO: Sumar Capital e Interés al monto pagado
+      final nuevoMontoPagado = cuota.montoPagado + montoInteres + montoCapital;
+      
+      // ✅ CORREGIDO: Acumular la mora pagada
+      final nuevaMoraPagada = cuota.montoMora + montoMora;
       
       await (database.update(database.cuotas)
             ..where((tbl) => tbl.id.equals(cuota.id)))
           .write(
         db.CuotasCompanion(
           montoPagado: Value(nuevoMontoPagado),
-          montoMora: Value(nuevaMora > 0 ? nuevaMora : 0),
+          montoMora: Value(nuevaMoraPagada),
           fechaPago: Value(fechaPago),
           estado: Value(_determinarEstadoCuota(
             interesTotal: cuota.interes,
-            interesPagado: nuevoMontoPagado,
+            capitalTotal: cuota.capital,
+            montoPagado: nuevoMontoPagado, // Ya incluye interés + capital
             fechaVencimiento: cuota.fechaVencimiento,
             fechaPago: fechaPago,
           )),
@@ -236,11 +240,13 @@ class PagoLocalDataSource {
   /// Determina el estado de una cuota después del pago
   String _determinarEstadoCuota({
     required double interesTotal,
-    required double interesPagado,
+    required double capitalTotal,
+    required double montoPagado,
     required DateTime fechaVencimiento,
     required DateTime fechaPago,
   }) {
-    if (interesPagado >= interesTotal) {
+    // Si se pagó todo el capital + interés
+    if (montoPagado >= (interesTotal + capitalTotal - 0.01)) { // Tolerancia por decimales
       return 'PAGADA';
     } else if (fechaPago.isAfter(fechaVencimiento)) {
       return 'MORA';
@@ -317,8 +323,9 @@ class PagoLocalDataSource {
 
   /// Actualiza estados de cuotas y préstamo
   Future<void> _actualizarEstados(int prestamoId) async {
-    // Actualizar estados de cuotas vencidas
     final hoy = DateTime.now();
+
+    // 1. Actualizar estados de cuotas vencidas (solo si siguen PENDIENTE)
     await (database.update(database.cuotas)
           ..where((tbl) => 
               tbl.prestamoId.equals(prestamoId) &
@@ -326,25 +333,55 @@ class PagoLocalDataSource {
               tbl.estado.equals('PENDIENTE')))
         .write(const db.CuotasCompanion(estado: Value('MORA')));
 
-    // Verificar estado del préstamo
-    final cuotasPendientes = await (database.select(database.cuotas)
-          ..where((tbl) => tbl.prestamoId.equals(prestamoId))
-          ..where((tbl) => tbl.estado.isNotValue('PAGADA')))
+    // 2. Obtener todas las cuotas paara recalcular totales
+    final cuotas = await (database.select(database.cuotas)
+          ..where((tbl) => tbl.prestamoId.equals(prestamoId)))
         .get();
 
+    if (cuotas.isEmpty) return;
+
+    // 3. Calcular totales reales sumando las cuotas
+    double totalPagadoReal = 0;
+    bool tieneMora = false;
+    bool todasPagadas = true;
+
+    for (final c in cuotas) {
+      totalPagadoReal += c.montoPagado;
+      
+      if (c.estado == 'MORA') tieneMora = true;
+      if (c.estado != 'PAGADA') todasPagadas = false;
+    }
+
+    // 4. Determinar nuevo estado del préstamo
     String nuevoEstado;
-    if (cuotasPendientes.isEmpty) {
+    if (todasPagadas) {
       nuevoEstado = 'PAGADO';
-    } else if (cuotasPendientes.any((c) => c.estado == 'MORA')) {
+    } else if (tieneMora) {
       nuevoEstado = 'MORA';
     } else {
       nuevoEstado = 'ACTIVO';
     }
 
+    // 5. Obtener préstamo actual para saldo base
+    final prestamo = await (database.select(database.prestamos)
+          ..where((tbl) => tbl.id.equals(prestamoId)))
+        .getSingle();
+
+    // 6. Recalcular saldo pendiente
+    // Nota: saldoPendiente = montoTotal (con interés) - totalPagadoReal
+    // Aseguramos que no sea negativo por errores de redondeo
+    double nuevoSaldoPendiente = prestamo.montoTotal - totalPagadoReal;
+    if (nuevoSaldoPendiente < 0) nuevoSaldoPendiente = 0;
+
+    // 7. Actualizar préstamo con TODOS los datos recalculados
     await (database.update(database.prestamos)
           ..where((tbl) => tbl.id.equals(prestamoId)))
         .write(db.PrestamosCompanion(
           estado: Value(nuevoEstado),
+          saldoPendiente: Value(nuevoSaldoPendiente),
+          // Si tuvieras un campo montoPagado en la tabla prestamos, lo actualizarías aquí también.
+          // Como drift/database.dart define las tablas, asumimos que se deriva o se guarda si existe campo.
+          // Revisando Prestamo entity: tiene saldoPendiente.
           fechaActualizacion: Value(DateTime.now()),
         ));
   }

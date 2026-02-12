@@ -6,6 +6,8 @@ import '../../domain/entities/cuota.dart';
 import '../providers/prestamo_provider.dart';
 import '../widgets/resumen_prestamo_widget.dart';
 import '../widgets/tabla_amortizacion_widget.dart';
+import '../widgets/prestamo_pagos_widget.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../presentation/widgets/state_widgets.dart';
 import 'prestamo_form_screen.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -158,12 +160,22 @@ class PrestamoDetailScreen extends ConsumerWidget {
                           context,
                           child: TablaAmortizacionWidget(
                             cuotas: cuotas,
+                            prestamo: prestamo,
                             compact: false,
                           ),
                         ),
                         loading: () => const Center(child: CircularProgressIndicator()),
                         error: (error, _) => Text('Error: $error'),
                       ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+
+                      const SizedBox(height: 24),
+
+                      // Historial de Pagos
+                      _buildSectionHeader(context, 'HISTORIAL DE PAGOS', Icons.history_rounded),
+                      _buildInfoCard(
+                        context,
+                        child: PrestamoPagosWidget(prestamoId: prestamoId),
+                      ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0),
 
                       const SizedBox(height: 24),
 
@@ -198,7 +210,7 @@ class PrestamoDetailScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _registrarPago(context),
+        onPressed: () => _registrarPago(context, ref),
         icon: const Icon(Icons.payments_rounded),
         label: const Text('REGISTRAR PAGO'),
         backgroundColor: AppTheme.primaryBrand,
@@ -326,16 +338,31 @@ class PrestamoDetailScreen extends ConsumerWidget {
 
   void _handleMenuAction(BuildContext context, WidgetRef ref, String action) {
     switch (action) {
-      case 'pagar': _registrarPago(context); break;
+      case 'pagar': _registrarPago(context, ref); break;
       case 'actualizar': _actualizarEstados(context, ref); break;
       case 'cancelar': _confirmarCancelacion(context, ref); break;
     }
   }
 
-  void _registrarPago(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Módulo de pagos en desarrollo (Fase 4)')),
-    );
+  void _registrarPago(BuildContext context, WidgetRef ref) {
+    ref.read(prestamoDetailProvider(prestamoId)).whenData((prestamo) {
+      if (prestamo == null) return;
+      
+      // Navegar a formulario de pago con parámetros
+      context.pushNamed(
+        'pago-form',
+        queryParameters: {
+          'prestamoId': prestamoId.toString(),
+          'prestamoCodigo': prestamo.codigo,
+          'saldoPendiente': prestamo.saldoPendiente.toString(),
+        },
+      ).then((_) {
+        // Al volver, actualizar estado
+        ref.invalidate(prestamoDetailProvider(prestamoId));
+        ref.invalidate(cuotasListProvider(prestamoId));
+        ref.invalidate(resumenCuotasProvider(prestamoId));
+      });
+    });
   }
 
   Future<void> _actualizarEstados(BuildContext context, WidgetRef ref) async {

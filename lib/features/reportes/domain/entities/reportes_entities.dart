@@ -6,12 +6,21 @@ import 'package:equatable/equatable.dart';
 
 /// Tipos de reportes disponibles en el sistema
 enum TipoReporte {
-  estadoCuentaCliente,
-  carteraCompleta,
-  moraDetallada,
-  movimientosCaja,
-  proyeccionCobros,
-  resumenPagos,
+  // Cartera
+  carteraCompleta,      // Préstamos Activos + Mora
+  prestamosCancelados,  // Préstamos Pagados + Cancelados
+  rendimientoCartera,   // Análisis de ganancia (Interés cobrado)
+  
+  // Mora
+  moraDetallada,        // Préstamos en Mora con días y montos
+  
+  // Clientes
+  estadoCuentaCliente,  // Historial y estado actual de cliente específico
+  
+  // Caja y Pagos
+  movimientosCaja,      // Flujo de caja
+  resumenPagos,         // Pagos recibidos
+  proyeccionCobros,     // Cuotas próximas a vencer
 }
 
 /// Formatos de salida para los reportes
@@ -243,35 +252,44 @@ class ErrorImportacion extends Equatable {
 extension TipoReporteExtension on TipoReporte {
   String get nombre {
     switch (this) {
-      case TipoReporte.estadoCuentaCliente:
-        return 'Estado de Cuenta por Cliente';
       case TipoReporte.carteraCompleta:
-        return 'Cartera Completa';
+        return 'Cartera Activa';
+      case TipoReporte.prestamosCancelados:
+        return 'Préstamos Cancelados';
+      case TipoReporte.rendimientoCartera:
+        return 'Rendimiento Financiero';
       case TipoReporte.moraDetallada:
         return 'Mora Detallada';
+      case TipoReporte.estadoCuentaCliente:
+        return 'Estado de Cuenta';
       case TipoReporte.movimientosCaja:
         return 'Movimientos de Caja';
-      case TipoReporte.proyeccionCobros:
-        return 'Proyección de Cobros';
       case TipoReporte.resumenPagos:
         return 'Resumen de Pagos';
+      case TipoReporte.proyeccionCobros:
+        return 'Proyección de Cobros';
     }
   }
 
   String get descripcion {
     switch (this) {
       case TipoReporte.estadoCuentaCliente:
-        return 'Detalle completo de préstamos y pagos de un cliente';
       case TipoReporte.carteraCompleta:
-        return 'Estado general de todos los préstamos';
+        return 'Estado general de préstamos activos y pendientes';
+      case TipoReporte.prestamosCancelados:
+        return 'Historial de préstamos pagados y cerrados';
+      case TipoReporte.rendimientoCartera:
+        return 'Análisis de ingresos por intereses y mora';
       case TipoReporte.moraDetallada:
-        return 'Préstamos y cuotas en mora';
+        return 'Detalle de préstamos con cuotas vencidas';
+      case TipoReporte.estadoCuentaCliente:
+        return 'Historial completo de un cliente específico';
       case TipoReporte.movimientosCaja:
-        return 'Ingresos, egresos y transferencias';
-      case TipoReporte.proyeccionCobros:
-        return 'Cuotas próximas a cobrar';
+        return 'Ingresos, egresos y transferencias de caja';
       case TipoReporte.resumenPagos:
-        return 'Total cobrado y distribución';
+        return 'Total cobrado desglosado por capital e interés';
+      case TipoReporte.proyeccionCobros:
+        return 'Cuotas próximas a vencer (Flujo futuro)';
     }
   }
 }

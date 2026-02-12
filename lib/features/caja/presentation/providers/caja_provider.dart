@@ -153,3 +153,21 @@ final resumenGeneralProvider = FutureProvider<Map<String, double>>((ref) async {
     (resumen) => resumen,
   );
 });
+
+// Provider for cajas (needed by movimientos screen)
+final cajasProvider = FutureProvider<List<Caja>>((ref) async {
+  final useCase = ref.watch(getCajasUseCaseProvider);
+  final result = await useCase();
+  
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (cajas) => cajas,
+  );
+});
+
+// Provider para todos los movimientos del sistema
+final movimientosGeneralesProvider = FutureProvider<List<Movimiento>>((ref) async {
+  final dataSource = ref.watch(cajaLocalDataSourceProvider);
+  final movimientos = await dataSource.getMovimientos();
+  return movimientos;
+});
