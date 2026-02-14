@@ -7,6 +7,8 @@ import '../../domain/usecases/delete_cliente.dart';
 import '../../data/datasources/cliente_local_data_source.dart';
 import '../../data/repositories/cliente_repository_impl.dart';
 import '../../../../core/database/database_provider.dart';
+import '../../../prestamos/domain/entities/prestamo.dart';
+import '../../../prestamos/presentation/providers/prestamo_provider.dart';
 
 
 // Provider para el data source
@@ -74,12 +76,16 @@ class ClientesState {
   final bool isLoading;
   final String? error;
   final String searchQuery;
+  final int currentPage;
+  final int pageSize;
 
   ClientesState({
     this.clientes = const [],
     this.isLoading = false,
     this.error,
     this.searchQuery = '',
+    this.currentPage = 1,
+    this.pageSize = 15,
   });
 
   ClientesState copyWith({
@@ -87,14 +93,20 @@ class ClientesState {
     bool? isLoading,
     String? error,
     String? searchQuery,
+    int? currentPage,
+    int? pageSize,
   }) {
     return ClientesState(
       clientes: clientes ?? this.clientes,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       searchQuery: searchQuery ?? this.searchQuery,
+      currentPage: currentPage ?? this.currentPage,
+      pageSize: pageSize ?? this.pageSize,
     );
   }
+
+  int get totalPages => (clientes.length / pageSize).ceil();
 }
 
 // Provider para el estado de clientes
@@ -218,6 +230,13 @@ class ClientesNotifier extends StateNotifier<ClientesState> {
   void clearError() {
     state = state.copyWith(error: null);
   }
+
+  /// Cambia la página actual
+  void setPage(int page) {
+    if (page >= 1 && page <= state.totalPages) {
+      state = state.copyWith(currentPage: page);
+    }
+  }
 }
 
 // Provider del notifier
@@ -229,6 +248,84 @@ final clientesProvider =
     ref.watch(createClienteUseCaseProvider),
     ref.watch(updateClienteUseCaseProvider),
     ref.watch(deleteClienteUseCaseProvider),
+  );
+});
+
+// ✅ NUEVO: Clase para el modelo de vista del dashboard
+class ClienteDashboardModel {
+  final Cliente cliente;
+  final double saldoTotal;
+  final String statusGlobal;
+
+  ClienteDashboardModel({
+    required this.cliente,
+    required this.saldoTotal,
+    required this.statusGlobal,
+  });
+}
+
+// ✅ NUEVO: Provider para los datos del dashboard (con paginación)
+final clientesDashboardProvider = Provider<AsyncValue<({List<ClienteDashboardModel> items, int totalItems, int totalPages, int currentPage})>>((ref) {
+  final clientesState = ref.watch(clientesProvider);
+  final prestamosAsync = ref.watch(prestamosListProvider);
+
+  if (clientesState.isLoading) return const AsyncValue.loading();
+  if (clientesState.error != null) return AsyncValue.error(clientesState.error!, StackTrace.current);
+
+  return prestamosAsync.when(
+    data: (prestamos) {
+      // 1. Mapear todos los clientes a modelos de dashboard
+      final allItems = clientesState.clientes.map((cliente) {
+        final prestamosCliente = prestamos.where((p) => p.clienteId == cliente.id).toList();
+        
+        double saldoTotal = 0;
+        bool tieneMora = false;
+        
+        for (final p in prestamosCliente) {
+          saldoTotal += p.saldoPendiente;
+          if (p.estado == EstadoPrestamo.mora) {
+            tieneMora = true;
+          }
+        }
+
+        String statusGlobal = 'Activo';
+        if (!cliente.activo) {
+          statusGlobal = 'Inactivo';
+        } else if (tieneMora) {
+          statusGlobal = 'Mora';
+        }
+
+        return ClienteDashboardModel(
+          cliente: cliente,
+          saldoTotal: saldoTotal,
+          statusGlobal: statusGlobal,
+        );
+      }).toList();
+
+      // 2. Aplicar paginación
+      final totalItems = allItems.length;
+      final totalPages = (totalItems / clientesState.pageSize).ceil();
+      final currentPage = clientesState.currentPage > totalPages ? totalPages : clientesState.currentPage;
+      
+      final startIndex = (currentPage - 1) * clientesState.pageSize;
+      final endIndex = startIndex + clientesState.pageSize;
+      
+      final paginatedItems = allItems.isEmpty 
+          ? <ClienteDashboardModel>[] 
+          : allItems.sublist(
+              startIndex, 
+              endIndex > totalItems ? totalItems : endIndex,
+            );
+
+      return AsyncValue.data((
+        items: paginatedItems,
+        totalItems: totalItems,
+        totalPages: totalPages == 0 ? 1 : totalPages,
+        currentPage: currentPage == 0 ? 1 : currentPage,
+      ));
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
   );
 });
 

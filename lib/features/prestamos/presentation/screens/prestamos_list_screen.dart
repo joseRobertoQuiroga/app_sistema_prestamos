@@ -1,266 +1,431 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../domain/entities/prestamo.dart';
 import '../providers/prestamo_provider.dart';
-import '../widgets/prestamo_card.dart';
-import '../widgets/prestamo_search_bar.dart';
-import '../../../../presentation/widgets/state_widgets.dart';
+import '../widgets/prestamo_table_row.dart';
 import 'prestamo_form_screen.dart';
 import 'prestamo_detail_screen.dart';
 import '../../../../presentation/widgets/app_drawer.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../domain/entities/prestamo.dart';
 
-class PrestamosListScreen extends ConsumerStatefulWidget {
+class PrestamosListScreen extends ConsumerWidget {
   const PrestamosListScreen({super.key});
 
   @override
-  ConsumerState<PrestamosListScreen> createState() => _PrestamosListScreenState();
-}
-
-class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
-  String _searchQuery = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final prestamosAsync = ref.watch(prestamosFilteredProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dashboardAsync = ref.watch(prestamosDashboardProvider);
     final estadoFiltro = ref.watch(estadoFiltroProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: isDark ? const Color(0xFF0F111A) : Colors.grey.shade50,
       appBar: AppBar(
-        title: Text(
-          'Gestión de Préstamos',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: -0.5,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.primaryBrand,
         elevation: 0,
+        title: const Text('Gestión de Préstamos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => ref.read(prestamosListProvider.notifier).refresh(),
-            tooltip: 'Refrescar',
           ),
+          const SizedBox(width: 8),
+          const CircleAvatar(
+            backgroundColor: Colors.white24,
+            child: Text('JD', style: TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+          const SizedBox(width: 16),
         ],
       ),
       drawer: const AppDrawer(),
-      body: Stack(
-        children: [
-          // Header Background
-          Container(
-            height: 240,
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      body: dashboardAsync.when(
+        data: (data) => Row(
+          children: [
+            // SIDEBAR
+            _buildSidebar(context, ref, data.stats, estadoFiltro, isDark),
+
+            // MAIN CONTENT
+            Expanded(
+              child: _buildMainContent(context, ref, data.items, isDark),
             ),
-          ),
-          
-          SafeArea(
+          ],
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+
+  Widget _buildSidebar(
+    BuildContext context, 
+    WidgetRef ref, 
+    PrestamosDashboardStats stats, 
+    EstadoPrestamo? currentEstado,
+    bool isDark,
+  ) {
+    return Container(
+      width: 300,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161925) : Colors.white,
+        border: Border(
+          right: BorderSide(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Barra de búsqueda premium
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Prestamo_ModernSearchBar(
-                    onSearch: (query) {
-                      setState(() => _searchQuery = query);
-                      if (query.isEmpty) {
-                        ref.read(prestamosListProvider.notifier).refresh();
-                      } else {
-                        ref.read(prestamosListProvider.notifier).search(query);
-                      }
-                    },
-                  ),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2, end: 0),
-
-                // Filtros de estado (Horizontal Chips)
-                _buildFilterChips(ref, estadoFiltro),
-
-                const SizedBox(height: 12),
-
-                // Lista de préstamos
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade50,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                    ),
-                    child: prestamosAsync.when(
-                      data: (prestamos) {
-                        if (prestamos.isEmpty) {
-                          return _buildEmptyState(context);
-                        }
-
-                        return RefreshIndicator(
-                          onRefresh: () async {
-                            ref.read(prestamosListProvider.notifier).refresh();
-                          },
-                          color: AppTheme.primaryBrand,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.only(top: 20, bottom: 100, left: 16, right: 16),
-                            itemCount: prestamos.length,
-                            itemBuilder: (context, index) {
-                              final prestamo = prestamos[index];
-                              return PrestamoCard(
-                                prestamo: prestamo,
-                                onTap: () => _navigateToDetail(context, prestamo.id!),
-                              ).animate().fadeIn(duration: 400.ms, delay: (index % 10 * 50).ms).slideX(begin: 0.1, end: 0);
-                            },
-                          ),
-                        );
-                      },
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (error, stack) => ErrorState(
-                        message: error.toString(),
-                        onRetry: () => ref.read(prestamosListProvider.notifier).refresh(),
-                      ),
-                    ),
+                const Text(
+                  'RESUMEN GLOBAL',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
                   ),
                 ),
+                const SizedBox(height: 24),
+                
+                // Stat Card 1
+                _buildSidebarStatCard(
+                  'Total Prestado',
+                  stats.totalPrestado,
+                  Icons.account_balance_wallet_outlined,
+                  '+12% vs mes anterior',
+                  Colors.green,
+                  isDark,
+                ),
+                const SizedBox(height: 16),
+                
+                // Stat Card 2
+                _buildSidebarStatCard(
+                  'Mora Total',
+                  stats.moraTotal,
+                  Icons.assignment_late_outlined,
+                  '${stats.countMora} préstamos en riesgo',
+                  Colors.red,
+                  isDark,
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'FILTRAR ESTADO',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                _buildFilterItem(ref, 'Todos', null, stats.countTodos, currentEstado == null, isDark),
+                _buildFilterItem(ref, 'Activo', EstadoPrestamo.activo, stats.countActivo, currentEstado == EstadoPrestamo.activo, isDark),
+                _buildFilterItem(ref, 'Pagado', EstadoPrestamo.pagado, stats.countPagado, currentEstado == EstadoPrestamo.pagado, isDark),
+                _buildFilterItem(ref, 'En Mora', EstadoPrestamo.mora, stats.countMora, currentEstado == EstadoPrestamo.mora, isDark),
+              ],
+            ),
+          ),
+
+          const Spacer(),
+
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _navigateToForm(context, ref),
+                icon: const Icon(Icons.add_card_rounded, size: 18),
+                label: const Text('Nuevo Préstamo', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBrand,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarStatCard(
+    String label, 
+    double amount, 
+    IconData icon, 
+    String trend, 
+    Color trendColor,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.02) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(
+                  '${Formatters.formatCurrency(amount)} Bs.',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  trend,
+                  style: TextStyle(color: trendColor, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 20, color: Colors.indigo.shade300),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterItem(
+    WidgetRef ref, 
+    String label, 
+    EstadoPrestamo? estado, 
+    int count, 
+    bool isSelected,
+    bool isDark,
+  ) {
+    return InkWell(
+      onTap: () => ref.read(estadoFiltroProvider.notifier).state = estado,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? AppTheme.primaryBrand : Colors.grey.shade400,
+                  width: isSelected ? 5 : 1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? (isDark ? Colors.white : Colors.black87) : Colors.grey,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.primaryBrand.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: isSelected ? AppTheme.primaryBrand : Colors.grey,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent(BuildContext context, WidgetRef ref, List<Prestamo> prestamos, bool isDark) {
+    return Column(
+      children: [
+        // SEARCH HEADER
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryBrand,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Buscar por código o cliente...',
+                hintStyle: TextStyle(color: Colors.white60),
+                prefixIcon: Icon(Icons.search, color: Colors.white60),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 15),
+              ),
+              onChanged: (query) {
+                if (query.isEmpty) {
+                  ref.read(prestamosListProvider.notifier).refresh();
+                } else {
+                  ref.read(prestamosListProvider.notifier).search(query);
+                }
+              },
+            ),
+          ),
+        ),
+
+        // TABLE
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E2130) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200),
+              boxShadow: [
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // TABLE HEADER
+                _buildTableHeader(isDark),
+                const Divider(height: 1),
+                
+                // TABLE BODY
+                Expanded(
+                  child: prestamos.isEmpty
+                      ? const Center(child: Text('No hay préstamos para mostrar'))
+                      : ListView.builder(
+                          itemCount: prestamos.length,
+                          itemBuilder: (context, index) {
+                            final prestamo = prestamos[index];
+                            return PrestamoTableRow(
+                              prestamo: prestamo,
+                              onTap: () {},
+                              onDetail: () => _navigateToDetail(context, ref, prestamo.id!),
+                            );
+                          },
+                        ),
+                ),
+
+                // TABLE FOOTER
+                _buildTableFooter(prestamos.length, isDark),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableHeader(bool isDark) {
+    const headerStyle = TextStyle(
+      color: Colors.grey,
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 0.5,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        children: [
+          const Expanded(flex: 2, child: Text('ID PRÉSTAMO', style: headerStyle)),
+          const Expanded(flex: 4, child: Text('CLIENTE', style: headerStyle)),
+          const Expanded(flex: 2, child: Text('MONTO', style: headerStyle)),
+          const Expanded(flex: 2, child: Text('PENDIENTE', style: headerStyle)),
+          const Expanded(flex: 3, child: Text('PROGRESO', style: headerStyle)),
+          const Expanded(flex: 2, child: Center(child: Text('ESTADO', style: headerStyle))),
+          const Expanded(flex: 1, child: Align(alignment: Alignment.centerRight, child: Text('ACCIÓN', style: headerStyle))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableFooter(int count, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.02) : Colors.grey.shade50,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Última actualización: Hoy, 10:45 AM',
+            style: TextStyle(color: Colors.grey, fontSize: 11),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              children: [
+                Text('10 por página', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToForm(context),
-        icon: const Icon(Icons.add_card_rounded),
-        label: const Text('NUEVO PRÉSTAMO'),
-        backgroundColor: AppTheme.primaryBrand,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 4,
-      ).animate().scale(duration: 400.ms, delay: 200.ms, curve: Curves.easeOutBack),
     );
   }
 
-  Widget _buildFilterChips(WidgetRef ref, EstadoPrestamo? currentEstado) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
-        children: [
-          _buildFilterChip(
-            ref,
-            label: 'Todos',
-            isSelected: currentEstado == null,
-            onSelected: () => ref.read(estadoFiltroProvider.notifier).state = null,
-          ),
-          const SizedBox(width: 8),
-          ...EstadoPrestamo.values.map((estado) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _buildFilterChip(
-                ref,
-                label: estado.displayName,
-                isSelected: currentEstado == estado,
-                color: _getEstadoColor(estado),
-                onSelected: () => ref.read(estadoFiltroProvider.notifier).state = estado,
-              ),
-            );
-          }),
-        ],
-      ),
-    ).animate().fadeIn(delay: 200.ms);
-  }
-
-  Widget _buildFilterChip(WidgetRef ref, {
-    required String label,
-    required bool isSelected,
-    required VoidCallback onSelected,
-    Color? color,
-  }) {
-    return GestureDetector(
-      onTap: onSelected,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected 
-            ? (color ?? Colors.white).withOpacity(isSelected ? 0.9 : 0.2)
-            : Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? (color ?? Colors.white) : Colors.white.withOpacity(0.2),
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            color: isSelected ? (color != null ? Colors.white : AppTheme.primaryBrand) : Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _searchQuery.isEmpty ? Icons.account_balance_rounded : Icons.search_off_rounded,
-            size: 80,
-            color: Colors.black12,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _searchQuery.isEmpty ? 'No hay préstamos activos' : 'Sin resultados',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black45),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _searchQuery.isEmpty ? 'Crea uno nuevo para comenzar' : 'Intenta con otros términos',
-            style: const TextStyle(color: Colors.black26),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getEstadoColor(EstadoPrestamo estado) {
-    switch (estado) {
-      case EstadoPrestamo.activo: return Colors.green.shade400;
-      case EstadoPrestamo.pagado: return Colors.blue.shade400;
-      case EstadoPrestamo.mora: return Colors.red.shade400;
-      case EstadoPrestamo.cancelado: return Colors.grey.shade400;
-    }
-  }
-
-  void _navigateToForm(BuildContext context) {
+  void _navigateToForm(BuildContext context, WidgetRef ref) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const PrestamoFormScreen()),
     ).then((_) => ref.read(prestamosListProvider.notifier).refresh());
   }
 
-  void _navigateToDetail(BuildContext context, int id) {
+  void _navigateToDetail(BuildContext context, WidgetRef ref, int id) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => PrestamoDetailScreen(prestamoId: id)),
     ).then((_) => ref.read(prestamosListProvider.notifier).refresh());
-  }
-}
-
-/// Alias para usar el nuevo diseño de barra de búsqueda
-class Prestamo_ModernSearchBar extends StatelessWidget {
-  final Function(String) onSearch;
-  const Prestamo_ModernSearchBar({super.key, required this.onSearch});
-
-  @override
-  Widget build(BuildContext context) {
-    return PrestamoSearchBar(onSearch: onSearch);
   }
 }

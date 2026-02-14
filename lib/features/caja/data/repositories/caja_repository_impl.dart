@@ -93,6 +93,8 @@ class CajaRepositoryImpl implements CajaRepository {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   }) async {
     try {
       final movimiento = await localDataSource.registrarIngreso(
@@ -102,6 +104,8 @@ class CajaRepositoryImpl implements CajaRepository {
         descripcion: descripcion,
         fecha: fecha,
         referencia: referencia,
+        prestamoId: prestamoId,
+        pagoId: pagoId,
       );
       return Right(movimiento);
     } catch (e) {
@@ -117,6 +121,8 @@ class CajaRepositoryImpl implements CajaRepository {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   }) async {
     try {
       final movimiento = await localDataSource.registrarEgreso(
@@ -126,10 +132,22 @@ class CajaRepositoryImpl implements CajaRepository {
         descripcion: descripcion,
         fecha: fecha,
         referencia: referencia,
+        prestamoId: prestamoId,
+        pagoId: pagoId,
       );
       return Right(movimiento);
     } catch (e) {
       return Left(DatabaseFailure('Error al registrar egreso: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<String>>> getCategorias(String tipo) async {
+    try {
+      final categorias = await localDataSource.getCategorias(tipo);
+      return Right(categorias);
+    } catch (e) {
+      return Left(DatabaseFailure('Error al obtener categorías: ${e.toString()}'));
     }
   }
 

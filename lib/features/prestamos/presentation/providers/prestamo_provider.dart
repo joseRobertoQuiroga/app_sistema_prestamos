@@ -1,5 +1,7 @@
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/database.dart' hide Prestamo, Cuota;
+import '../../../../core/database/database_provider.dart';
 import '../../domain/entities/prestamo.dart';
 import '../../domain/entities/cuota.dart';
 import '../../domain/usecases/generar_codigo_prestamo.dart';
@@ -12,11 +14,6 @@ import '../../data/repositories/prestamo_repository_impl.dart';
 // ============================================================================
 // PROVIDERS DE INFRAESTRUCTURA
 // ============================================================================
-
-// Database provider
-final databaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
-});
 
 // Data Source provider
 final prestamoLocalDataSourceProvider = Provider<PrestamoLocalDataSource>((ref) {
@@ -98,6 +95,23 @@ final getResumenCuotasProvider = Provider<GetResumenCuotas>((ref) {
 });
 
 // ============================================================================
+// PROVIDERS DE CÁLCULO
+// ============================================================================
+
+final calcularTotalesProvider = FutureProvider.family<Map<String, double>, ({double monto, double tasaInteres, TipoInteres tipoInteres, int plazoMeses})>((ref, p) async {
+  final tasaMensual = p.tasaInteres / 100 / 12;
+  double cuota, total;
+  if (p.tipoInteres == TipoInteres.simple) {
+    total = p.monto + (p.monto * tasaMensual * p.plazoMeses);
+    cuota = total / p.plazoMeses;
+  } else {
+    cuota = p.monto * (tasaMensual * pow(1 + tasaMensual, p.plazoMeses)) / (pow(1 + tasaMensual, p.plazoMeses) - 1);
+    total = cuota * p.plazoMeses;
+  }
+  return {'montoOriginal': p.monto, 'interesTotal': total - p.monto, 'montoTotal': total, 'cuotaMensual': cuota};
+});
+
+// ============================================================================
 // STATE PROVIDERS
 // ============================================================================
 
@@ -176,28 +190,82 @@ final resumenCuotasProvider = FutureProvider.family<ResumenCuotas, int>((ref, pr
 });
 
 // ============================================================================
-// FILTROS Y OPCIONES
+// FILTROS, DASHBOARD & STATS
 // ============================================================================
 
 // Filtro de estado actual
 final estadoFiltroProvider = StateProvider<EstadoPrestamo?>((ref) => null);
 
-// Lista filtrada por estado
-final prestamosFilteredProvider = Provider<AsyncValue<List<Prestamo>>>((ref) {
+class PrestamosDashboardStats {
+  final double totalPrestado;
+  final double moraTotal;
+  final int countTodos;
+  final int countActivo;
+  final int countPagado;
+  final int countMora;
+
+  PrestamosDashboardStats({
+    this.totalPrestado = 0,
+    this.moraTotal = 0,
+    this.countTodos = 0,
+    this.countActivo = 0,
+    this.countPagado = 0,
+    this.countMora = 0,
+  });
+}
+
+// Provider para el dashboard (estadísticas y lista filtrada)
+final prestamosDashboardProvider = Provider<AsyncValue<({List<Prestamo> items, PrestamosDashboardStats stats})>>((ref) {
   final prestamosAsync = ref.watch(prestamosListProvider);
   final estadoFiltro = ref.watch(estadoFiltroProvider);
 
   return prestamosAsync.when(
-    data: (prestamos) {
-      if (estadoFiltro == null) {
-        // Excluir préstamos pagados de la vista principal
-        final filtered = prestamos.where((p) => p.estado != EstadoPrestamo.pagado).toList();
-        return AsyncValue.data(filtered);
+    data: (allPrestamos) {
+      double totalPrestado = 0;
+      double moraTotal = 0;
+      int countActivo = 0;
+      int countPagado = 0;
+      int countMora = 0;
+
+      for (final p in allPrestamos) {
+        totalPrestado += p.montoOriginal;
+        if (p.estado == EstadoPrestamo.mora) {
+          moraTotal += p.saldoPendiente;
+          countMora++;
+        } else if (p.estado == EstadoPrestamo.activo) {
+          countActivo++;
+        } else if (p.estado == EstadoPrestamo.pagado) {
+          countPagado++;
+        }
       }
-      final filtered = prestamos.where((p) => p.estado == estadoFiltro).toList();
-      return AsyncValue.data(filtered);
+
+      final stats = PrestamosDashboardStats(
+        totalPrestado: totalPrestado,
+        moraTotal: moraTotal,
+        countTodos: allPrestamos.length,
+        countActivo: countActivo,
+        countPagado: countPagado,
+        countMora: countMora,
+      );
+
+      final filteredItems = allPrestamos.where((p) {
+        if (estadoFiltro == null) return true;
+        return p.estado == estadoFiltro;
+      }).toList();
+
+      return AsyncValue.data((items: filteredItems, stats: stats));
     },
     loading: () => const AsyncValue.loading(),
-    error: (error, stack) => AsyncValue.error(error, stack),
+    error: (e, s) => AsyncValue.error(e, s),
+  );
+});
+
+// Provider legacy para no romper otros componentes si lo usan (opcional)
+final prestamosFilteredProvider = Provider<AsyncValue<List<Prestamo>>>((ref) {
+  final dashboardAsync = ref.watch(prestamosDashboardProvider);
+  return dashboardAsync.when(
+    data: (data) => AsyncValue.data(data.items),
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
   );
 });

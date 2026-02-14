@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/caja_provider.dart';
 import '../../domain/entities/caja.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../presentation/widgets/custom_text_field.dart';
 import '../../../../presentation/widgets/custom_button.dart';
@@ -94,6 +95,14 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
           _showError(failure.message);
         },
         (movimientos) {
+          // Invalidar providers
+          ref.invalidate(saldoTotalProvider);
+          ref.invalidate(dashboardKPIsProvider);
+          ref.invalidate(resumenGeneralProvider);
+          ref.invalidate(movimientosGeneralesProvider);
+          ref.invalidate(cajasListProvider);
+          ref.invalidate(cajasActivasProvider);
+          
           setState(() => _isLoading = false);
           _showSuccess(
             'Transferencia realizada: ${Formatters.formatCurrency(double.parse(_montoController.text))}'
@@ -205,9 +214,12 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
                   if (monto == null) return null;
                   
                   // Validar saldo disponible
-                  final cajaOrigen = cajasAsync.value?.firstWhere(
-                    (c) => c.id == _cajaOrigenSeleccionada,
-                  );
+                  Caja? cajaOrigen;
+                  try {
+                    cajaOrigen = cajasAsync.value?.firstWhere(
+                      (c) => c.id == _cajaOrigenSeleccionada,
+                    );
+                  } catch (_) {}
                   
                   if (cajaOrigen != null && monto > cajaOrigen.saldo) {
                     return 'Saldo insuficiente en caja origen';
@@ -423,8 +435,15 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
     final monto = double.tryParse(_montoController.text) ?? 0;
     if (monto == 0) return const SizedBox.shrink();
 
-    final cajaOrigen = cajas.firstWhere((c) => c.id == _cajaOrigenSeleccionada);
-    final cajaDestino = cajas.firstWhere((c) => c.id == _cajaDestinoSeleccionada);
+    Caja? cajaOrigen;
+    Caja? cajaDestino;
+    
+    try {
+      cajaOrigen = cajas.firstWhere((c) => c.id == _cajaOrigenSeleccionada);
+      cajaDestino = cajas.firstWhere((c) => c.id == _cajaDestinoSeleccionada);
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
 
     final saldoOrigenNuevo = cajaOrigen.saldo - monto;
     final saldoDestinoNuevo = cajaDestino.saldo + monto;

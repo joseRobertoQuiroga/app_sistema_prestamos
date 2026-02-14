@@ -101,6 +101,8 @@ class RegistrarIngreso {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   }) async {
     if (cajaId <= 0) {
       return Left(ValidationFailure('ID de caja inválido'));
@@ -121,6 +123,8 @@ class RegistrarIngreso {
       descripcion: descripcion,
       fecha: fecha,
       referencia: referencia,
+      prestamoId: prestamoId,
+      pagoId: pagoId,
     );
   }
 }
@@ -136,6 +140,8 @@ class RegistrarEgreso {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   }) async {
     if (cajaId <= 0) {
       return Left(ValidationFailure('ID de caja inválido'));
@@ -167,6 +173,8 @@ class RegistrarEgreso {
           descripcion: descripcion,
           fecha: fecha,
           referencia: referencia,
+          prestamoId: prestamoId,
+          pagoId: pagoId,
         );
       },
     );
@@ -261,6 +269,15 @@ class GetMovimientosPorPeriodo {
       inicio: inicio,
       fin: fin,
     );
+  }
+}
+
+class GetCategorias {
+  final CajaRepository repository;
+  GetCategorias(this.repository);
+
+  Future<Either<Failure, List<String>>> call(String tipo) async {
+    return await repository.getCategorias(tipo);
   }
 }
 

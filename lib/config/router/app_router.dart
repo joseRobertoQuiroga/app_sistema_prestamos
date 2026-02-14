@@ -14,9 +14,12 @@ import '../../features/caja/presentation/screens/registrar_ingreso_screen.dart';
 import '../../features/caja/presentation/screens/registrar_egreso_screen.dart';
 import '../../features/caja/presentation/screens/transferencia_screen.dart';
 import '../../features/caja/presentation/screens/movimientos_generales_screen.dart';
+import '../../features/caja/presentation/screens/generar_movimiento_screen.dart'; // ✅ NUEVO
 import '../../features/pagos/presentation/screens/registrar_pago_screen.dart';
 import '../../features/pagos/presentation/screens/pagos_list_screen.dart'; // ✅ NUEVO
 import '../../features/reportes/presentation/screens/reportes_main_screen.dart';
+import '../../features/reportes/presentation/screens/unified_reports_screen.dart'; // ✅ NUEVO
+import '../../features/informes/presentation/screens/informes_main_screen.dart'; // ✅ NUEVO
 import '../../features/ayuda/presentation/screens/ayuda_screen.dart';
 import '../../presentation/widgets/app_drawer.dart';
 
@@ -37,7 +40,9 @@ class AppRouter {
   static const String cajaEgreso = '/cajas/egreso';
   static const String transferencia = '/transferencias';
   static const String movimientos = '/movimientos';
+  static const String generarMovimiento = '/movimientos/generar'; // ✅ NUEVO
   static const String reportes = '/reportes';
+  static const String informes = '/informes'; // ✅ NUEVO
   static const String ayuda = '/ayuda';
 
   static final GoRouter router = GoRouter(
@@ -233,6 +238,14 @@ class AppRouter {
           child: const MovimientosGeneralesScreen(),
         ),
       ),
+      GoRoute(
+        path: generarMovimiento,
+        name: 'generar-movimiento',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const GenerarMovimientoScreen(),
+        ),
+      ),
 
       // Reportes
       GoRoute(
@@ -240,7 +253,17 @@ class AppRouter {
         name: 'reportes',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const ReportesScreen(),
+          child: const UnifiedReportsScreen(), // ✅ ACTUALIZADO
+        ),
+      ),
+
+      // Informes - ✅ NUEVO
+      GoRoute(
+        path: informes,
+        name: 'informes',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const InformesMainScreen(),
         ),
       ),
 

@@ -456,7 +456,13 @@ class _MovimientosGeneralesScreenState extends ConsumerState<MovimientosGenerale
                             title: const Text('Caja'),
                             subtitle: Text(_cajaSeleccionada == null
                                 ? 'Todas las cajas'
-                                : cajas.firstWhere((c) => c.id == _cajaSeleccionada).nombre),
+                                : () {
+                                    try {
+                                      return cajas.firstWhere((c) => c.id == _cajaSeleccionada).nombre;
+                                    } catch (_) {
+                                      return 'Caja no encontrada';
+                                    }
+                                  }()),
                           ),
                           Wrap(
                             spacing: 8,

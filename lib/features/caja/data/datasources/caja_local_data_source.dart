@@ -95,6 +95,8 @@ class CajaLocalDataSource {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   }) async {
     return await database.transaction(() async {
       // Obtener caja actual
@@ -115,8 +117,10 @@ class CajaLocalDataSource {
               monto: monto,
               descripcion: descripcion,
               fecha: fecha,
-              saldoAnterior: saldoAnterior, // ✅ AHORA existe en Drift
-              saldoNuevo: saldoNuevo, // ✅ AHORA existe en Drift
+              saldoAnterior: saldoAnterior, 
+              saldoNuevo: saldoNuevo, 
+              prestamoId: Value(prestamoId),
+              pagoId: Value(pagoId),
               observaciones: Value(referencia),
               fechaRegistro: Value(DateTime.now()),
             ),
@@ -146,6 +150,8 @@ class CajaLocalDataSource {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   }) async {
     return await database.transaction(() async {
       // Obtener caja actual
@@ -172,8 +178,10 @@ class CajaLocalDataSource {
               monto: monto,
               descripcion: descripcion,
               fecha: fecha,
-              saldoAnterior: saldoAnterior, // ✅ AHORA existe en Drift
-              saldoNuevo: saldoNuevo, // ✅ AHORA existe en Drift
+              saldoAnterior: saldoAnterior, 
+              saldoNuevo: saldoNuevo, 
+              prestamoId: Value(prestamoId),
+              pagoId: Value(pagoId),
               observaciones: Value(referencia),
               fechaRegistro: Value(DateTime.now()),
             ),
@@ -319,6 +327,15 @@ class CajaLocalDataSource {
         .get();
 
     return movimientos.map((m) => MovimientoModel.fromDrift(m)).toList();
+  }
+
+  Future<List<String>> getCategorias(String tipo) async {
+    final query = database.selectOnly(database.movimientos, distinct: true)
+      ..addColumns([database.movimientos.categoria])
+      ..where(database.movimientos.tipo.equals(tipo));
+
+    final result = await query.get();
+    return result.map((row) => row.read(database.movimientos.categoria)!).toList();
   }
 
   // ============= CONSULTAS =============

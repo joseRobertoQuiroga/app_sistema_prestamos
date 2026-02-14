@@ -5,6 +5,7 @@ import '../providers/caja_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../presentation/widgets/custom_text_field.dart';
 import '../../../../presentation/widgets/custom_button.dart';
+import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 
 class CajaFormScreen extends ConsumerStatefulWidget {
   final int? cajaId;
@@ -130,6 +131,13 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
             _showError(failure.message);
           },
           (cajaCreada) {
+            // Invalidar providers
+            ref.invalidate(cajasListProvider);
+            ref.invalidate(cajasActivasProvider);
+            ref.invalidate(saldoTotalProvider);
+            ref.invalidate(resumenGeneralProvider);
+            ref.invalidate(dashboardKPIsProvider);
+            
             setState(() => _isLoading = false);
             _showSuccess('Caja creada exitosamente');
             Navigator.pop(context, true);
@@ -146,6 +154,14 @@ class _CajaFormScreenState extends ConsumerState<CajaFormScreen> {
             _showError(failure.message);
           },
           (cajaActualizada) {
+            // Invalidar providers
+            ref.invalidate(cajasListProvider);
+            ref.invalidate(cajasActivasProvider);
+            ref.invalidate(saldoTotalProvider);
+            ref.invalidate(resumenGeneralProvider);
+            ref.invalidate(dashboardKPIsProvider);
+            ref.invalidate(cajaByIdProvider(widget.cajaId!));
+            
             setState(() => _isLoading = false);
             _showSuccess('Caja actualizada exitosamente');
             Navigator.pop(context, true);

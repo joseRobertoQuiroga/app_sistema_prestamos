@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/pago_provider.dart';
+import '../../../caja/presentation/providers/caja_provider.dart';
+import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/formatters.dart';
 
@@ -75,6 +77,14 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
           );
         },
         (resultado) {
+          // Invalidar providers para refrescar datos
+          ref.invalidate(saldoTotalProvider);
+          ref.invalidate(dashboardKPIsProvider);
+          ref.invalidate(resumenGeneralProvider);
+          ref.invalidate(movimientosGeneralesProvider);
+          ref.invalidate(cajasListProvider);
+          ref.invalidate(cajasActivasProvider);
+          
           // Mostrar diálogo con resultado
           _mostrarResultado(resultado);
         },

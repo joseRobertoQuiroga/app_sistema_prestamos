@@ -488,17 +488,5 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
   }
 }
 
-// Provider de cálculo
-final calcularTotalesProvider = FutureProvider.family<Map<String, double>, ({double monto, double tasaInteres, TipoInteres tipoInteres, int plazoMeses})>((ref, p) async {
-  final tasaMensual = p.tasaInteres / 100 / 12;
-  double cuota, total;
-  if (p.tipoInteres == TipoInteres.simple) {
-    total = p.monto + (p.monto * tasaMensual * p.plazoMeses);
-    cuota = total / p.plazoMeses;
-  } else {
-    cuota = p.monto * (tasaMensual * pow(1 + tasaMensual, p.plazoMeses)) / (pow(1 + tasaMensual, p.plazoMeses) - 1);
-    total = cuota * p.plazoMeses;
-  }
-  return {'montoOriginal': p.monto, 'interesTotal': total - p.monto, 'montoTotal': total, 'cuotaMensual': cuota};
-});
+
 

@@ -9,7 +9,6 @@ enum TipoReporte {
   // Cartera
   carteraCompleta,      // Préstamos Activos + Mora
   prestamosCancelados,  // Préstamos Pagados + Cancelados
-  rendimientoCartera,   // Análisis de ganancia (Interés cobrado)
   
   // Mora
   moraDetallada,        // Préstamos en Mora con días y montos
@@ -21,6 +20,11 @@ enum TipoReporte {
   movimientosCaja,      // Flujo de caja
   resumenPagos,         // Pagos recibidos
   proyeccionCobros,     // Cuotas próximas a vencer
+  
+  // ✅ NUEVOS REPORTES PEDIDOS
+  resumenPrestamo,      // Resumen ejecutivo de un préstamo específico
+  resumenEgresos,       // Detalle general o por caja de egresos
+  resumenIngresos,      // Detalle general o por caja de ingresos
 }
 
 /// Formatos de salida para los reportes
@@ -256,8 +260,6 @@ extension TipoReporteExtension on TipoReporte {
         return 'Cartera Activa';
       case TipoReporte.prestamosCancelados:
         return 'Préstamos Cancelados';
-      case TipoReporte.rendimientoCartera:
-        return 'Rendimiento Financiero';
       case TipoReporte.moraDetallada:
         return 'Mora Detallada';
       case TipoReporte.estadoCuentaCliente:
@@ -268,6 +270,12 @@ extension TipoReporteExtension on TipoReporte {
         return 'Resumen de Pagos';
       case TipoReporte.proyeccionCobros:
         return 'Proyección de Cobros';
+      case TipoReporte.resumenPrestamo:
+        return 'Resumen de Préstamo';
+      case TipoReporte.resumenEgresos:
+        return 'Resumen de Egresos';
+      case TipoReporte.resumenIngresos:
+        return 'Resumen de Ingresos';
     }
   }
 
@@ -278,8 +286,6 @@ extension TipoReporteExtension on TipoReporte {
         return 'Estado general de préstamos activos y pendientes';
       case TipoReporte.prestamosCancelados:
         return 'Historial de préstamos pagados y cerrados';
-      case TipoReporte.rendimientoCartera:
-        return 'Análisis de ingresos por intereses y mora';
       case TipoReporte.moraDetallada:
         return 'Detalle de préstamos con cuotas vencidas';
       case TipoReporte.estadoCuentaCliente:
@@ -290,6 +296,12 @@ extension TipoReporteExtension on TipoReporte {
         return 'Total cobrado desglosado por capital e interés';
       case TipoReporte.proyeccionCobros:
         return 'Cuotas próximas a vencer (Flujo futuro)';
+      case TipoReporte.resumenPrestamo:
+        return 'Información completa y directa de un préstamo';
+      case TipoReporte.resumenEgresos:
+        return 'Resumen general o por caja de todos los egresos';
+      case TipoReporte.resumenIngresos:
+        return 'Resumen general o por caja de todos los ingresos';
     }
   }
 }

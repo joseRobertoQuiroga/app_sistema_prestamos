@@ -47,7 +47,13 @@ final registrarIngresoUseCaseProvider = Provider<RegistrarIngreso>((ref) {
 });
 
 final registrarEgresoUseCaseProvider = Provider<RegistrarEgreso>((ref) {
-  return RegistrarEgreso(ref.watch(cajaRepositoryProvider));
+  final repository = ref.watch(cajaRepositoryProvider);
+  return RegistrarEgreso(repository);
+});
+
+final getCategoriasUseCaseProvider = Provider<GetCategorias>((ref) {
+  final repository = ref.watch(cajaRepositoryProvider);
+  return GetCategorias(repository);
 });
 
 final registrarTransferenciaUseCaseProvider = Provider<RegistrarTransferencia>((ref) {
@@ -69,6 +75,12 @@ final getResumenCajaUseCaseProvider = Provider<GetResumenCaja>((ref) {
 
 final getResumenGeneralUseCaseProvider = Provider<GetResumenGeneral>((ref) {
   return GetResumenGeneral(ref.watch(cajaRepositoryProvider));
+});
+
+final categoriasProvider = FutureProvider.family<List<String>, String>((ref, tipo) async {
+  final useCase = ref.watch(getCategoriasUseCaseProvider);
+  final result = await useCase(tipo);
+  return result.fold((l) => [], (r) => r);
 });
 
 // Provider para lista de cajas
@@ -170,4 +182,28 @@ final movimientosGeneralesProvider = FutureProvider<List<Movimiento>>((ref) asyn
   final dataSource = ref.watch(cajaLocalDataSourceProvider);
   final movimientos = await dataSource.getMovimientos();
   return movimientos;
+});
+
+// ✅ NUEVO: Provider para el query de búsqueda de cajas
+final cajaSearchQueryProvider = StateProvider<String>((ref) => '');
+
+// ✅ NUEVO: Provider para lista de cajas filtrada por búsqueda
+final filteredCajasProvider = Provider<AsyncValue<List<Caja>>>((ref) {
+  final cajasAsync = ref.watch(cajasListProvider);
+  final searchQuery = ref.watch(cajaSearchQueryProvider).toLowerCase();
+
+  return cajasAsync.when(
+    data: (cajas) {
+      if (searchQuery.isEmpty) return AsyncValue.data(cajas);
+      
+      final filtered = cajas.where((caja) {
+        return caja.nombre.toLowerCase().contains(searchQuery) ||
+               (caja.banco?.toLowerCase().contains(searchQuery) ?? false);
+      }).toList();
+      
+      return AsyncValue.data(filtered);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+  );
 });

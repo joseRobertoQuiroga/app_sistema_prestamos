@@ -47,8 +47,13 @@ class ReportesRepositoryImpl implements ReportesRepository {
           rutaArchivo = await dataSource.generarReporteCancelados(configuracion);
           break;
 
-        case TipoReporte.rendimientoCartera:
-          rutaArchivo = await dataSource.generarReporteRendimiento(configuracion);
+        case TipoReporte.resumenPrestamo:
+          rutaArchivo = await dataSource.generarReporteEstadoCuenta(configuracion);
+          break;
+
+        case TipoReporte.resumenEgresos:
+        case TipoReporte.resumenIngresos:
+          rutaArchivo = await dataSource.generarReporteMovimientos(configuracion);
           break;
       }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/caja_provider.dart';
 import '../../domain/entities/caja.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../presentation/widgets/custom_text_field.dart';
 import '../../../../presentation/widgets/custom_button.dart';
@@ -75,6 +76,14 @@ class _RegistrarEgresoScreenState extends ConsumerState<RegistrarEgresoScreen> {
           _showError(failure.message);
         },
         (movimiento) {
+          // Invalidar providers
+          ref.invalidate(saldoTotalProvider);
+          ref.invalidate(dashboardKPIsProvider);
+          ref.invalidate(resumenGeneralProvider);
+          ref.invalidate(movimientosGeneralesProvider);
+          ref.invalidate(cajasListProvider);
+          ref.invalidate(cajasActivasProvider);
+          
           setState(() => _isLoading = false);
           _showSuccess(
             'Egreso registrado: ${Formatters.formatCurrency(movimiento.monto)}'

@@ -120,8 +120,8 @@ class ReportesTab extends ConsumerWidget {
                     children: [
                       // 1. Cartera Activa
                       ReporteCard(
-                        titulo: 'Cartera',
-                        descripcion: 'Listado completo de préstamos activos con saldos pendientes',
+                        titulo: 'Cartera Activa',
+                        descripcion: 'Listado completo de todos los préstamos activos con montos, saldos pendientes, fechas de vencimiento y estado de cada cuota',
                         icono: Icons.account_balance_wallet,
                         color: Colors.blue,
                         onTap: () => _generarReporte(
@@ -133,8 +133,8 @@ class ReportesTab extends ConsumerWidget {
                       
                       // 2. Mora
                       ReporteCard(
-                        titulo: 'Mora',
-                        descripcion: 'Préstamos vencidos con detalle de cuotas atrasadas',
+                        titulo: 'Mora Detallada',
+                        descripcion: 'Préstamos con cuotas vencidas, días de atraso, monto de mora acumulada por cliente y totales de cartera en riesgo',
                         icono: Icons.warning_amber,
                         color: Colors.red,
                         onTap: () => _generarReporte(
@@ -146,8 +146,8 @@ class ReportesTab extends ConsumerWidget {
 
                       // 3. Proyección
                       ReporteCard(
-                        titulo: 'Proyección',
-                        descripcion: 'Calendario de cobros y vencimientos próximos',
+                        titulo: 'Proyección de Cobros',
+                        descripcion: 'Calendario de vencimientos futuros, cuotas por vencer en los próximos 30 días y proyección de ingresos esperados',
                         icono: Icons.calendar_today,
                         color: Colors.teal,
                         onTap: () => _generarReporte(
@@ -159,8 +159,8 @@ class ReportesTab extends ConsumerWidget {
                       
                       // 4. Pagos
                       ReporteCard(
-                        titulo: 'Pagos',
-                        descripcion: 'Historial completo de pagos recibidos y aplicados',
+                        titulo: 'Historial de Pagos',
+                        descripcion: 'Registro completo de todos los pagos recibidos con fecha, cliente, monto pagado, aplicación de capital e intereses',
                         icono: Icons.payment,
                         color: Colors.green,
                         onTap: () => _generarReporte(
@@ -172,8 +172,8 @@ class ReportesTab extends ConsumerWidget {
 
                       // 5. Cajas
                       ReporteCard(
-                        titulo: 'Cajas',
-                        descripcion: 'Movimientos de ingresos y egresos por caja',
+                        titulo: 'Movimientos de Caja',
+                        descripcion: 'Detalle de todos los ingresos y egresos por caja, con totales, saldos y balance de cada punto de operación',
                         icono: Icons.point_of_sale,
                         color: Colors.orange,
                         onTap: () => _generarReporte(
@@ -185,8 +185,8 @@ class ReportesTab extends ConsumerWidget {
 
                       // 6. Cancelados
                       ReporteCard(
-                        titulo: 'Cancelados',
-                        descripcion: 'Préstamos completamente pagados o cancelados',
+                        titulo: 'Préstamos Pagados',
+                        descripcion: 'Listado de préstamos completamente liquidados con fechas de inicio, finalización, montos y total de intereses generados',
                         icono: Icons.check_circle_outline,
                         color: Colors.grey,
                         onTap: () => _generarReporte(
@@ -196,23 +196,10 @@ class ReportesTab extends ConsumerWidget {
                         ),
                       ).animate().fadeIn(delay: 250.ms).scale(),
 
-                      // 7. Rendimiento
-                      ReporteCard(
-                        titulo: 'Rendimiento',
-                        descripcion: 'Análisis de rentabilidad e intereses generados',
-                        icono: Icons.trending_up,
-                        color: Colors.purple,
-                        onTap: () => _generarReporte(
-                          context,
-                          ref,
-                          TipoReporte.rendimientoCartera,
-                        ),
-                      ).animate().fadeIn(delay: 300.ms).scale(),
-
                       // 8. Estado de Cuenta (Requiere cliente)
                       ReporteCard(
-                        titulo: 'Estado Cta.',
-                        descripcion: 'Resumen detallado de préstamos por cliente',
+                        titulo: 'Estado de Cuenta',
+                        descripcion: 'Resumen detallado por cliente con todos sus préstamos, historial de pagos, saldos y comportamiento crediticio',
                         icono: Icons.person_search,
                         color: Colors.indigo,
                         onTap: () => _seleccionarClienteYGenerar(context, ref),

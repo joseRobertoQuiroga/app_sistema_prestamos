@@ -23,6 +23,8 @@ abstract class CajaRepository {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   });
 
   Future<Either<Failure, Movimiento>> registrarEgreso({
@@ -32,6 +34,8 @@ abstract class CajaRepository {
     required String descripcion,
     required DateTime fecha,
     String? referencia,
+    int? prestamoId,
+    int? pagoId,
   });
 
   Future<Either<Failure, List<Movimiento>>> registrarTransferencia({
@@ -50,6 +54,8 @@ abstract class CajaRepository {
     required DateTime inicio,
     required DateTime fin,
   });
+
+  Future<Either<Failure, List<String>>> getCategorias(String tipo);
 
   // Consultas
   Future<Either<Failure, double>> getSaldoTotal();
