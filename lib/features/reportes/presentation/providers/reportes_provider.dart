@@ -7,6 +7,7 @@ import '../../data/services/excel_service.dart';
 import '../../data/services/pdf_service.dart';
 import '../../data/services/importacion_service.dart';
 import '../../data/datasources/reportes_local_data_source.dart';
+import '../../../prestamos/presentation/providers/prestamo_provider.dart';
 
 // ============================================================================
 // SERVICIOS
@@ -53,7 +54,8 @@ final reportesLocalDataSourceProvider = Provider<ReportesLocalDataSource>((ref) 
 /// Provider para el repositorio de reportes
 final reportesRepositoryProvider = Provider<ReportesRepository>((ref) {
   final dataSource = ref.watch(reportesLocalDataSourceProvider);
-  return ReportesRepositoryImpl(dataSource);
+  final sincronizarEstados = ref.watch(sincronizarEstadosProvider);
+  return ReportesRepositoryImpl(dataSource, sincronizarEstados);
 });
 
 // ============================================================================

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../clientes/domain/entities/cliente.dart';
 import '../../../clientes/presentation/providers/cliente_provider.dart';
 
 /// Widget de diálogo para seleccionar un cliente
@@ -75,24 +76,24 @@ class _SelectorClienteWidgetState
     );
   }
 
-  Widget _buildClientesList(List<dynamic> clientes) {
+  Widget _buildClientesList(List<Cliente> clientes) {
     final clientesFiltrados = clientes.where((cliente) {
       if (_filtro.isEmpty) return true;
       return cliente.nombreCompleto.toLowerCase().contains(_filtro) ||
-          cliente.cedula.toLowerCase().contains(_filtro);
+          cliente.ci.toLowerCase().contains(_filtro);
     }).toList();
 
     return ListView.builder(
       shrinkWrap: true,
       itemCount: clientesFiltrados.length,
       itemBuilder: (context, index) {
-        final cliente = clientesFiltrados[index];
+        final Cliente cliente = clientesFiltrados[index];
         return ListTile(
           leading: CircleAvatar(
             child: Text(cliente.nombreCompleto[0].toUpperCase()),
           ),
           title: Text(cliente.nombreCompleto),
-          subtitle: Text('Cédula: ${cliente.cedula}'),
+          subtitle: Text('Cédula: ${cliente.ci}'),
           onTap: () {
             widget.onClienteSeleccionado(cliente.id!);
           },

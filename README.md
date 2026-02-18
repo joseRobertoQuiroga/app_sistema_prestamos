@@ -12,6 +12,7 @@
 - [Módulos y Funcionalidades](#-módulos-y-funcionalidades)
 - [Componentes Visuales](#-componentes-visuales)
 - [Tecnologías Utilizadas](#-tecnologías-utilizadas)
+- [Cálculos y Fórmulas (Documentación Técnica)](README_CALCULOS.md)
 - [Instalación y Configuración](#-instalación-y-configuración)
 - [Guía de Uso](#-guía-de-uso)
 

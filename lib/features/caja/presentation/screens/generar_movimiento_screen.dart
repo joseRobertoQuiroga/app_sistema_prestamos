@@ -1008,9 +1008,12 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
           Text('IMPACTO DE OPERACIÓN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), letterSpacing: 0.5)),
           const SizedBox(height: 32),
           _buildImpactRow(context, 'Saldo Actual', '${Formatters.formatNumber(saldoActual)} Bs.'),
-          const SizedBox(height: 16),
-          _buildImpactDelta(context, delta, isIncome),
-          const SizedBox(height: 24),
+          if (monto > 0) ...[
+            const SizedBox(height: 16),
+            _buildImpactDelta(context, delta, isIncome),
+            const SizedBox(height: 24),
+          ] else
+            const SizedBox(height: 32),
           _buildNewBalance(context, '${Formatters.formatNumber(nuevoSaldo)} Bs.', warning: outOfFunds),
           if (outOfFunds) ...[
             const SizedBox(height: 8),

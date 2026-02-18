@@ -74,11 +74,6 @@ class AppDrawer extends ConsumerWidget {
             ),
           ),
           
-          // Resumen Ejecutivo (Informational Navbar feature)
-          _buildExecutiveSummary(context, ref),
-          
-          const Divider(height: 1),
-          
           // Menú
           Expanded(
             child: ListView(
@@ -86,49 +81,11 @@ class AppDrawer extends ConsumerWidget {
               children: [
                 _buildDrawerItem(
                   context,
-                  icon: Icons.dashboard,
-                  title: 'Dashboard',
-                  route: '/',
-                  selected: location == '/',
+                  icon: Icons.add_circle_outline,
+                  title: 'Inicio / Generar',
+                  route: AppRouter.generarMovimiento,
+                  selected: location == AppRouter.generarMovimiento,
                 ),
-                const Divider(height: 1),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.people,
-                  title: 'Clientes',
-                  route: '/clientes',
-                  selected: location.startsWith('/clientes'),
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.account_balance,
-                  title: 'Préstamos',
-                  route: '/prestamos',
-                  selected: location.startsWith('/prestamos'),
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.payment,
-                  title: 'Pagos',
-                  route: '/pagos',
-                  selected: location.startsWith('/pagos'),
-                ),
-                const Divider(height: 1),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.account_balance_wallet,
-                  title: 'Cajas',
-                  route: '/cajas',
-                  selected: location.startsWith('/cajas'),
-                ),
-                  _buildDrawerItem(
-                  context,
-                  icon: Icons.swap_horiz,
-                  title: 'Transferencias',
-                  route: '/transferencias',
-                  selected: location.startsWith('/transferencias'),
-                ),
-                const Divider(height: 1),
                 _buildDrawerItem(
                   context,
                   icon: Icons.compare_arrows,
@@ -136,50 +93,72 @@ class AppDrawer extends ConsumerWidget {
                   route: AppRouter.movimientos,
                   selected: location == AppRouter.movimientos,
                 ),
+                
+                const Divider(height: 32),
+                _buildSectionLabel(context, 'PRÉSTAMOS'),
                 _buildDrawerItem(
                   context,
-                  icon: Icons.add_circle_outline,
-                  title: 'Generar Movimiento',
-                  route: AppRouter.generarMovimiento,
-                  selected: location == AppRouter.generarMovimiento,
+                  icon: Icons.people,
+                  title: 'Clientes',
+                  route: AppRouter.clientes,
+                  selected: location.startsWith(AppRouter.clientes),
                 ),
-                const Divider(height: 1),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.account_balance,
+                  title: 'Préstamos',
+                  route: AppRouter.prestamos,
+                  selected: location.startsWith(AppRouter.prestamos),
+                ),
+
+                const Divider(height: 32),
+                // Sección sin nombre
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.account_balance_wallet,
+                  title: 'Cajas',
+                  route: AppRouter.cajas,
+                  selected: location.startsWith(AppRouter.cajas),
+                ),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.swap_horiz,
+                  title: 'Transferencias',
+                  route: AppRouter.transferencia,
+                  selected: location.startsWith(AppRouter.transferencia),
+                ),
+
+                const Divider(height: 32),
+                _buildSectionLabel(context, 'REPORTES'),
                 _buildDrawerItem(
                   context,
                   icon: Icons.assessment,
                   title: 'Reportes',
-                  route: '/reportes',
-                  selected: location.startsWith('/reportes'),
+                  route: AppRouter.reportes,
+                  selected: location.startsWith(AppRouter.reportes),
                 ),
                 _buildDrawerItem(
                   context,
                   icon: Icons.bar_chart,
                   title: 'Informes',
-                  route: '/informes',
-                  selected: location.startsWith('/informes'),
+                  route: AppRouter.informes,
+                  selected: location.startsWith(AppRouter.informes),
                 ),
-                const Divider(height: 1),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.help_outline,
-                  title: 'Ayuda',
-                  route: '/ayuda',
-                  selected: location.startsWith('/ayuda'),
-                ),
-                const Divider(height: 1),
                 _buildDrawerItem(
                   context,
                   icon: Icons.refresh,
                   title: 'Cargar Datos',
-                  route: '/reportes', // Assuming this navigates to the reports/data section
-                  selected: false,
+                  route: AppRouter.gestionDatos,
+                  selected: location == AppRouter.gestionDatos,
                 ),
+
+                const Divider(height: 32),
                 _buildDrawerItem(
                   context,
-                  icon: Icons.file_upload,
-                  title: 'Importar',
-                  route: '/reportes', // Assuming this navigates to the reports/data section
-                  selected: false,
+                  icon: Icons.help_outline,
+                  title: 'Ayuda',
+                  route: AppRouter.ayuda,
+                  selected: location.startsWith(AppRouter.ayuda),
                 ),
               ],
             ),
@@ -205,9 +184,9 @@ class AppDrawer extends ConsumerWidget {
             size: 20,
           ),
           const SizedBox(width: 8),
-          Text(
-            isDarkMode ? 'Modo Oscuro' : 'Modo Claro',
-            style: const TextStyle(
+          const Text(
+            'Modo Oscuro',
+            style: TextStyle(
               color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -229,109 +208,18 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildExecutiveSummary(BuildContext context, WidgetRef ref) {
-    final kpisAsync = ref.watch(dashboardKPIsProvider);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return kpisAsync.when(
-      data: (kpis) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.05) : theme.colorScheme.primary.withOpacity(0.05),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.analytics_outlined, size: 16, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'RESUMEN EJECUTIVO',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryItem(
-              context,
-              label: 'Saldo Total Cajas',
-              value: Formatters.formatCurrency(kpis.saldoTotalCajas),
-              icon: Icons.account_balance_wallet,
-              color: Colors.green,
-            ),
-            const SizedBox(height: 12),
-            _buildSummaryItem(
-              context,
-              label: 'Cartera Vigente',
-              value: Formatters.formatCurrency(kpis.capitalPorCobrar),
-              icon: Icons.pie_chart,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 12),
-            _buildSummaryItem(
-              context,
-              label: 'Préstamos Activos',
-              value: '${kpis.prestamosActivos}',
-              icon: Icons.assignment_turned_in,
-              color: Colors.orange,
-            ),
-          ],
+  Widget _buildSectionLabel(BuildContext context, String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+          letterSpacing: 1.2,
         ),
       ),
-      loading: () => const AppSummarySkeleton(),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  Widget _buildSummaryItem(
-    BuildContext context, {
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: color),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -383,44 +271,6 @@ class AppDrawer extends ConsumerWidget {
           context.go(route);
         });
       },
-    );
-  }
-}
-
-class AppSummarySkeleton extends StatelessWidget {
-  const AppSummarySkeleton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(height: 12, width: 100, color: isDark ? Colors.white12 : Colors.black12),
-          const SizedBox(height: 16),
-          ...List.generate(3, (index) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Container(height: 28, width: 28, decoration: BoxDecoration(color: isDark ? Colors.white12 : Colors.black12, borderRadius: BorderRadius.circular(8))),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(height: 10, width: 60, color: isDark ? Colors.white10 : Colors.black12),
-                      const SizedBox(height: 4),
-                      Container(height: 12, width: 120, color: isDark ? Colors.white12 : Colors.black12),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )),
-        ],
-      ),
     );
   }
 }

@@ -68,6 +68,7 @@ class ConfiguracionReporte extends Equatable {
   final DateTime? fechaFin;
   final int? clienteId; // Para reportes específicos de cliente
   final int? cajaId; // Para reportes específicos de caja
+  final int? prestamoId; // Para reportes específicos de préstamo
 
   const ConfiguracionReporte({
     required this.tipo,
@@ -77,6 +78,7 @@ class ConfiguracionReporte extends Equatable {
     this.fechaFin,
     this.clienteId,
     this.cajaId,
+    this.prestamoId,
   });
 
   /// Obtiene el rango de fechas según el período
@@ -135,6 +137,7 @@ class ConfiguracionReporte extends Equatable {
         fechaFin,
         clienteId,
         cajaId,
+        prestamoId,
       ];
 }
 

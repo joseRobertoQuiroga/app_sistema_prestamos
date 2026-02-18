@@ -238,4 +238,14 @@ class PrestamoRepositoryImpl implements PrestamoRepository {
       return Left(DatabaseFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> sincronizarTodosLosEstados() async {
+    try {
+      await localDataSource.sincronizarTodosLosEstados();
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
 }

@@ -29,4 +29,5 @@ abstract class PrestamoRepository {
   // Operaciones de actualización de estado
   Future<Either<Failure, void>> actualizarEstadoPrestamo(int prestamoId);
   Future<Either<Failure, void>> actualizarEstadosCuotas(int prestamoId);
+  Future<Either<Failure, void>> sincronizarTodosLosEstados();
 }

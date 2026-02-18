@@ -247,3 +247,13 @@ class ActualizarEstadosCuotas {
     return await repository.actualizarEstadosCuotas(prestamoId);
   }
 }
+
+class SincronizarEstados {
+  final PrestamoRepository repository;
+
+  SincronizarEstados(this.repository);
+
+  Future<Either<Failure, void>> call() async {
+    return await repository.sincronizarTodosLosEstados();
+  }
+}

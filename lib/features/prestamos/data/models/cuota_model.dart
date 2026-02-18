@@ -100,11 +100,11 @@ class CuotaModel extends Cuota {
   // --- Helpers ---
 
   static EstadoCuota _parseEstado(String value) {
-    return EstadoCuota.values.firstWhere(
-      (e) => e.name == value,
-      orElse: () => EstadoCuota.pendiente,
-    );
+    return EstadoCuota.fromString(value);
   }
 
-  static String _enumToString(Object e) => e.toString().split('.').last;
+  static String _enumToString(dynamic e) {
+    if (e is EstadoCuota) return e.toStorageString();
+    return e.toString().split('.').last.toUpperCase();
+  }
 }

@@ -135,18 +135,16 @@ class PrestamoModel extends Prestamo {
   // --- Helpers para Enums ---
   
   static TipoInteres _parseTipoInteres(String value) {
-    return TipoInteres.values.firstWhere(
-      (e) => e.name == value,
-      orElse: () => TipoInteres.simple, // Fallback por defecto
-    );
+    return TipoInteres.fromString(value);
   }
 
   static EstadoPrestamo _parseEstado(String value) {
-    return EstadoPrestamo.values.firstWhere(
-      (e) => e.name == value,
-      orElse: () => EstadoPrestamo.activo, // Fallback
-    );
+    return EstadoPrestamo.fromString(value);
   }
 
-  static String _enumToString(Object e) => e.toString().split('.').last;
+  static String _enumToString(dynamic e) {
+    if (e is EstadoPrestamo) return e.toStorageString();
+    if (e is TipoInteres) return e.toStorageString();
+    return e.toString().split('.').last.toUpperCase();
+  }
 }

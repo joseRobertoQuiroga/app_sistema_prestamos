@@ -83,6 +83,11 @@ final cancelarPrestamoProvider = Provider<CancelarPrestamo>((ref) {
   return CancelarPrestamo(repository);
 });
 
+final sincronizarEstadosProvider = Provider<SincronizarEstados>((ref) {
+  final repository = ref.watch(prestamoRepositoryProvider);
+  return SincronizarEstados(repository);
+});
+
 // Cuotas
 final getCuotasByPrestamoProvider = Provider<GetCuotasByPrestamo>((ref) {
   final repository = ref.watch(prestamoRepositoryProvider);
@@ -119,20 +124,26 @@ final calcularTotalesProvider = FutureProvider.family<Map<String, double>, ({dou
 final prestamosListProvider = StateNotifierProvider<PrestamosListNotifier, AsyncValue<List<Prestamo>>>((ref) {
   final getPrestamos = ref.watch(getPrestamosProvider);
   final searchPrestamos = ref.watch(searchPrestamosProvider);
-  return PrestamosListNotifier(getPrestamos, searchPrestamos);
+  final sincronizarEstados = ref.watch(sincronizarEstadosProvider);
+  return PrestamosListNotifier(getPrestamos, searchPrestamos, sincronizarEstados);
 });
 
 class PrestamosListNotifier extends StateNotifier<AsyncValue<List<Prestamo>>> {
   final GetPrestamos getPrestamos;
   final SearchPrestamos searchPrestamos;
+  final SincronizarEstados sincronizarEstados;
 
-  PrestamosListNotifier(this.getPrestamos, this.searchPrestamos)
+  PrestamosListNotifier(this.getPrestamos, this.searchPrestamos, this.sincronizarEstados)
       : super(const AsyncValue.loading()) {
     loadPrestamos();
   }
 
   Future<void> loadPrestamos() async {
     state = const AsyncValue.loading();
+    
+    // Sincronizar estados antes de cargar la lista
+    await sincronizarEstados();
+    
     final result = await getPrestamos();
     result.fold(
       (failure) => state = AsyncValue.error(failure.message, StackTrace.current),

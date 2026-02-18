@@ -65,16 +65,30 @@ class ReportesLocalDataSource {
     ])..where(database.prestamos.estado.equals('MORA'));
 
     final results = await query.get();
-    final prestamosEnMora = results.map((row) {
+    final now = DateTime.now();
+
+    final prestamosEnMora = <PrestamoMora>[];
+    for (final row in results) {
       final prestamo = row.readTable(database.prestamos);
       final cliente = row.readTableOrNull(database.clientes);
-      return PrestamoMora(
+      
+      // Obtener cuotas para calcular mora exacta
+      final cuotas = await (database.select(database.cuotas)
+            ..where((tbl) => tbl.prestamoId.equals(prestamo.id)))
+          .get();
+          
+      final totalMora = cuotas.fold<double>(0, (sum, c) => sum + (c.montoMora));
+      final diasMora = now.isAfter(prestamo.fechaVencimiento)
+          ? now.difference(prestamo.fechaVencimiento).inDays
+          : 0;
+
+      prestamosEnMora.add(PrestamoMora(
         codigo: prestamo.codigo,
         nombreCliente: cliente != null ? '${cliente.nombres} ${cliente.apellidos}' : 'N/A',
-        diasMora: 0,
-        moraAcumulada: 0,
-      );
-    }).toList();
+        diasMora: diasMora,
+        moraAcumulada: totalMora,
+      ));
+    }
 
     final totalMoraAcumulada = prestamosEnMora.fold<double>(0, (sum, p) => sum + p.moraAcumulada);
 

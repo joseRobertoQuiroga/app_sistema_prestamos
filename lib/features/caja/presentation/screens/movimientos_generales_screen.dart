@@ -5,7 +5,7 @@ import '../../../../presentation/widgets/app_drawer.dart';
 import '../../../../core/utils/formatters.dart';
 import '../providers/caja_provider.dart';
 
-/// Pantalla de Movimientos Generales del sistema
+/// Pantalla de Movimientos Generales del sistema (Rediseñada con Estética Premium)
 class MovimientosGeneralesScreen extends ConsumerStatefulWidget {
   const MovimientosGeneralesScreen({super.key});
 
@@ -18,522 +18,836 @@ class _MovimientosGeneralesScreenState extends ConsumerState<MovimientosGenerale
   DateTime _fechaFin = DateTime.now();
   int? _cajaSeleccionada;
   String _tipoSeleccionado = 'TODOS'; // TODOS, INGRESO, EGRESO, TRANSFERENCIA
+  String? _categoriaSeleccionada;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final movimientosAsync = ref.watch(movimientosGeneralesProvider);
     final cajasAsync = ref.watch(cajasProvider);
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Movimientos Generales'),
+        title: Text(
+          'Movimientos Generales',
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: isDark ? Colors.white : const Color(0xFF1E293B)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.invalidate(movimientosGeneralesProvider),
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list_rounded),
             onPressed: () => _mostrarFiltros(context),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
-        children: [
-          // Resumen de filtros activos
-          _buildFiltrosResumen(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 900;
 
-          const Divider(height: 1),
-
-          // Lista de movimientos
-          Expanded(
-            child: movimientosAsync.when(
-              data: (movimientos) {
-                // Aplicar filtros
-                var movimientosFiltrados = movimientos.where((m) {
-                  // Filtro por fecha
-                  final enRango = m.fecha.isAfter(_fechaInicio.subtract(const Duration(days: 1))) &&
-                      m.fecha.isBefore(_fechaFin.add(const Duration(days: 1)));
-                  if (!enRango) return false;
-
-                  // Filtro por caja
-                  if (_cajaSeleccionada != null && m.cajaId != _cajaSeleccionada) {
-                    return false;
+          return movimientosAsync.when(
+            data: (movimientos) {
+              // Aplicar filtros (Lógica original intacta)
+              var movimientosFiltrados = movimientos.where((m) {
+                final enRango = m.fecha.isAfter(_fechaInicio.subtract(const Duration(days: 1))) &&
+                    m.fecha.isBefore(_fechaFin.add(const Duration(days: 1)));
+                if (!enRango) return false;
+                if (_cajaSeleccionada != null && m.cajaId != _cajaSeleccionada) return false;
+                if (_tipoSeleccionado != 'TODOS') {
+                  if (_tipoSeleccionado == 'TRANSFERENCIA') {
+                    if (m.categoria != 'TRANSFERENCIA') return false;
+                  } else {
+                    if (m.tipo != _tipoSeleccionado) return false;
                   }
-
-                  // Filtro por tipo
-                  if (_tipoSeleccionado != 'TODOS') {
-                    // Para transferencias, buscar categoria TRANSFERENCIA
-                    if (_tipoSeleccionado == 'TRANSFERENCIA') {
-                      return m.categoria == 'TRANSFERENCIA';
-                    } else {
-                      return m.tipo == _tipoSeleccionado;
-                    }
-                  }
-
-                  return true;
-                }).toList();
-
-                // Ordenar por fecha descendente
-                movimientosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
-
-                if (movimientosFiltrados.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No hay movimientos con estos filtros',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          icon: const Icon(Icons.clear),
-                          label: const Text('Limpiar filtros'),
-                          onPressed: () {
-                            setState(() {
-                              _fechaInicio = DateTime.now().subtract(const Duration(days: 30));
-                              _fechaFin = DateTime.now();
-                              _cajaSeleccionada = null;
-                              _tipoSeleccionado = 'TODOS';
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  );
                 }
+                if (_categoriaSeleccionada != null && m.categoria != _categoriaSeleccionada) return false;
+                return true;
+              }).toList();
 
-                // Calcular totales
-                final totalIngresos = movimientosFiltrados
-                    .where((m) => m.tipo == 'INGRESO')
-                    .fold<double>(0, (sum, m) => sum + m.monto);
-                final totalEgresos = movimientosFiltrados
-                    .where((m) => m.tipo == 'EGRESO')
-                    .fold<double>(0, (sum, m) => sum + m.monto);
+              movimientosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
 
-                return Column(
-                  children: [
-                    // Tarjeta de estadísticas
-                    _buildEstadisticas(
-                      totalIngresos: totalIngresos,
-                      totalEgresos: totalEgresos,
-                      cantidad: movimientosFiltrados.length,
-                    ),
+              final totalIngresos = movimientosFiltrados
+                  .where((m) => m.tipo == 'INGRESO')
+                  .fold<double>(0, (sum, m) => sum + m.monto);
+              final totalEgresos = movimientosFiltrados
+                  .where((m) => m.tipo == 'EGRESO')
+                  .fold<double>(0, (sum, m) => sum + m.monto);
 
-                    const Divider(height: 1),
-
-                    // Lista
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: movimientosFiltrados.length,
-                        itemBuilder: (context, index) {
-                          final movimiento = movimientosFiltrados[index];
-                          return cajasAsync.when(
-                            data: (cajas) {
-                              if (cajas.isEmpty) {
-                                return _buildMovimientoCard(movimiento, 'Sin Caja');
-                              }
-                              try {
-                                final caja = cajas.firstWhere(
-                                  (c) => c.id == movimiento.cajaId,
-                                );
-                                return _buildMovimientoCard(movimiento, caja.nombre);
-                              } catch (e) {
-                                // Si no se encuentra, usar 'Sin Caja'
-                                return _buildMovimientoCard(movimiento, 'Sin Caja');
-                              }
-                            },
-                            loading: () => _buildMovimientoCard(movimiento, 'Cargando...'),
-                            error: (_, __) => _buildMovimientoCard(movimiento, 'N/A'),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error al cargar movimientos: $error'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+              if (isMobile) {
+                return _buildMobileLayout(movimientosFiltrados, totalIngresos, totalEgresos, cajasAsync);
+              } else {
+                return _buildDesktopLayout(movimientosFiltrados, totalIngresos, totalEgresos, cajasAsync);
+              }
+            },
+            loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
+            error: (error, _) => _buildErrorState(error.toString()),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFiltrosResumen() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      color: Theme.of(context).primaryColor.withOpacity(0.05),
-      child: Row(
-        children: [
-          const Icon(Icons.filter_alt, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${DateFormat('dd/MM/yy').format(_fechaInicio)} - ${DateFormat('dd/MM/yy').format(_fechaFin)}'
-              '${_cajaSeleccionada != null ? ' • Caja específica' : ''}'
-              ' • ${_tipoSeleccionado == 'TODOS' ? 'Todos' : _tipoSeleccionado}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          TextButton(
-            onPressed: () => _mostrarFiltros(context),
-            child: const Text('Cambiar', style: TextStyle(fontSize: 12)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEstadisticas({
-    required double totalIngresos,
-    required double totalEgresos,
-    required int cantidad,
-  }) {
-    final saldo = totalIngresos - totalEgresos;
-
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildEstadisticaCard(
-              'Ingresos',
-              Formatters.formatCurrency(totalIngresos),
-              Colors.green,
-              Icons.arrow_downward,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildEstadisticaCard(
-              'Egresos',
-              Formatters.formatCurrency(totalEgresos),
-              Colors.red,
-              Icons.arrow_upward,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildEstadisticaCard(
-              'Balance',
-              Formatters.formatCurrency(saldo),
-              saldo >= 0 ? Colors.blue : Colors.orange,
-              Icons.account_balance,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEstadisticaCard(String label, String valor, Color color, IconData icono) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget _buildMobileLayout(List<dynamic> movimientos, double ingresos, double egresos, AsyncValue<List<dynamic>> cajasAsync) {
+    return Column(
+      children: [
+        _buildSimplifiedFilterResumen(),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              Icon(icono, size: 16, color: color),
-              const SizedBox(width: 4),
+              _buildModernStatsHeader(ingresos, egresos),
+              const SizedBox(height: 16),
+              ...movimientos.map((m) => _buildModernMovimientoCard(m, cajasAsync)),
+              if (movimientos.isEmpty) _buildEmptyState(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout(List<dynamic> movimientos, double ingresos, double egresos, AsyncValue<List<dynamic>> cajasAsync) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Lista principal (70%)
+        Expanded(
+          flex: 7,
+          child: Column(
+            children: [
+              _buildSimplifiedFilterResumen(),
               Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(fontSize: 11, color: color),
-                ),
+                child: movimientos.isEmpty 
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      itemCount: movimientos.length,
+                      itemBuilder: (context, index) => _buildModernMovimientoCard(movimientos[index], cajasAsync),
+                    ),
               ),
             ],
           ),
+        ),
+        // Sidebar (30%)
+        Expanded(
+          flex: 3,
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E2130) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'RESUMEN FINANCIERO',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildSidebarStat(
+                  'Ingresos Totales',
+                  ingresos,
+                  const Color(0xFF10B981),
+                  Icons.arrow_downward_rounded,
+                ),
+                const SizedBox(height: 16),
+                _buildSidebarStat(
+                  'Egresos Totales',
+                  egresos,
+                  const Color(0xFFEF4444),
+                  Icons.arrow_upward_rounded,
+                ),
+                const Divider(height: 32),
+                _buildSidebarBalance(ingresos - egresos),
+                const SizedBox(height: 24),
+                _buildSidebarQuickActions(),
+                const Spacer(),
+                _buildSidebarInfo(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernStatsHeader(double ingresos, double egresos) {
+    final balance = ingresos - egresos;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8B5CF6).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Balance del Periodo',
+            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 4),
           Text(
-            valor,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-            overflow: TextOverflow.ellipsis,
+            Formatters.formatCurrency(balance),
+            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildMobileStatItem('Ingresos', ingresos, Icons.add_circle_outline),
+              Container(width: 1, height: 30, color: Colors.white24),
+              _buildMobileStatItem('Egresos', egresos, Icons.remove_circle_outline),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMovimientoCard(dynamic movimiento, String nombreCaja) {
-    final esIngreso = movimiento.tipo == 'INGRESO';
-    final color = esIngreso ? Colors.green : Colors.red;
-    final icono = esIngreso ? Icons.arrow_downward : Icons.arrow_upward;
+  Widget _buildMobileStatItem(String label, double val, IconData icon) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: Colors.white70),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          ],
+        ),
+        Text(
+          Formatters.formatCurrency(val),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ],
+    );
+  }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+  Widget _buildSidebarStat(String label, double val, Color color, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text(Formatters.formatCurrency(val), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarBalance(double balance) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = balance >= 0 ? const Color(0xFF8B5CF6) : const Color(0xFFEF4444);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('BALANCE NETO', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(
+          Formatters.formatCurrency(balance),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernMovimientoCard(dynamic movimiento, AsyncValue<List<dynamic>> cajasAsync) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final esIngreso = movimiento.tipo == 'INGRESO';
+    final isTransfer = movimiento.categoria == 'TRANSFERENCIA';
+    
+    Color typeColor = esIngreso ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    IconData typeIcon = esIngreso ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded;
+    
+    if (isTransfer) {
+      typeColor = const Color(0xFF3B82F6);
+      typeIcon = Icons.swap_horiz_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E2130) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9)),
+      ),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.1),
-          child: Icon(icono, color: color, size: 20),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: typeColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(typeIcon, color: typeColor),
         ),
         title: Text(
           movimiento.descripcion,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            fontSize: 15,
+          ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$nombreCaja • ${movimiento.categoria}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            Text(
-              DateFormat('dd/MM/yyyy HH:mm').format(movimiento.fecha),
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-            ),
-          ],
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            children: [
+              cajasAsync.when(
+                data: (cajas) {
+                  try {
+                    final caja = cajas.firstWhere((c) => c.id == movimiento.cajaId);
+                    return _buildCardBadge(caja.nombre, isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9));
+                  } catch (_) {
+                    return _buildCardBadge('Desconocida', Colors.grey.withOpacity(0.2));
+                  }
+                },
+                loading: () => const SizedBox(width: 50, height: 10, child: LinearProgressIndicator()),
+                error: (_, __) => _buildCardBadge('N/A', Colors.red.withOpacity(0.1)),
+              ),
+              const SizedBox(width: 8),
+              _buildCardBadge(movimiento.categoria, typeColor.withOpacity(0.1), textColor: typeColor),
+            ],
+          ),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              Formatters.formatCurrency(movimiento.monto),
+              '${esIngreso ? "+" : "-"} ${Formatters.formatCurrency(movimiento.monto)}',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: color,
-                fontSize: 14,
+                color: typeColor,
+                fontSize: 16,
               ),
             ),
-            if (movimiento.referencia != null)
-              Text(
-                movimiento.referencia!,
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-              ),
+            Text(
+              DateFormat('dd/MM HH:mm').format(movimiento.fecha),
+              style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            ),
           ],
         ),
-        isThreeLine: true,
+      ),
+    );
+  }
+
+  Widget _buildCardBadge(String text, Color bgColor, {Color? textColor}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: textColor ?? (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimplifiedFilterResumen() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E2130).withOpacity(0.5) : Colors.white,
+        border: Border(bottom: BorderSide(color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9))),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_month_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          const SizedBox(width: 8),
+          Text(
+            '${DateFormat('dd MMM').format(_fechaInicio)} - ${DateFormat('dd MMM yyyy').format(_fechaFin)}',
+            style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : const Color(0xFF475569), fontWeight: FontWeight.w500),
+          ),
+          const Spacer(),
+          if (_cajaSeleccionada != null || _tipoSeleccionado != 'TODOS' || _categoriaSeleccionada != null)
+            _buildActiveFilterChip(
+              _categoriaSeleccionada ?? (_tipoSeleccionado == 'TODOS' ? 'Filtrado' : _tipoSeleccionado),
+              onClear: () => setState(() {
+                _cajaSeleccionada = null;
+                _tipoSeleccionado = 'TODOS';
+                _categoriaSeleccionada = null;
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveFilterChip(String label, {required VoidCallback onClear}) {
+    return Container(
+      padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF8B5CF6).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Text(label, style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onClear,
+            child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF8B5CF6)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarQuickActions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ACCIONES RÁPIDAS',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildQuickActionButton(
+          'Hoy',
+          Icons.today_rounded,
+          () => setState(() {
+            _fechaInicio = DateTime.now();
+            _fechaFin = DateTime.now();
+          }),
+        ),
+        _buildQuickActionButton(
+          'Últimos 7 días',
+          Icons.date_range_rounded,
+          () => setState(() {
+            _fechaInicio = DateTime.now().subtract(const Duration(days: 7));
+            _fechaFin = DateTime.now();
+          }),
+        ),
+        _buildQuickActionButton(
+          'Reiniciar Filtros',
+          Icons.restart_alt_rounded,
+          () => setState(() {
+            _fechaInicio = DateTime.now().subtract(const Duration(days: 30));
+            _fechaFin = DateTime.now();
+            _cajaSeleccionada = null;
+            _tipoSeleccionado = 'TODOS';
+            _categoriaSeleccionada = null;
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionButton(String label, IconData icon, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: const Color(0xFF8B5CF6)),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarInfo() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF94A3B8)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Los movimientos reflejan el flujo real de dinero en las cajas del sistema.',
+              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 80),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E2130) : const Color(0xFFF1F5F9),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.inbox_rounded, size: 48, color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sin movimientos registrados',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Prueba ajustando los filtros de fecha o categoría.',
+              style: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 64, color: Color(0xFFEF4444)),
+          const SizedBox(height: 16),
+          Text('Ha ocurrido un error', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(error, style: const TextStyle(color: Colors.grey)),
+        ],
       ),
     );
   }
 
   Future<void> _mostrarFiltros(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet(
       context: context,
+      backgroundColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       isScrollControlled: true,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final cajasAsync = ref.watch(cajasProvider);
 
-            return Container(
-              padding: const EdgeInsets.all(16),
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Filtros',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Rango de fechas
-                  ListTile(
-                    leading: const Icon(Icons.calendar_today),
-                    title: const Text('Fecha inicio'),
-                    subtitle: Text(DateFormat('dd/MM/yyyy').format(_fechaInicio)),
-                    onTap: () async {
-                      final fecha = await showDatePicker(
-                        context: context,
-                        initialDate: _fechaInicio,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                      );
-                      if (fecha != null) {
-                        setModalState(() => _fechaInicio = fecha);
-                        setState(() => _fechaInicio = fecha);
-                      }
-                    },
-                  ),
-
-                  ListTile(
-                    leading: const Icon(Icons.calendar_today),
-                    title: const Text('Fecha fin'),
-                    subtitle: Text(DateFormat('dd/MM/yyyy').format(_fechaFin)),
-                    onTap: () async {
-                      final fecha = await showDatePicker(
-                        context: context,
-                        initialDate: _fechaFin,
-                        firstDate: _fechaInicio,
-                        lastDate: DateTime.now(),
-                      );
-                      if (fecha != null) {
-                        setModalState(() => _fechaFin = fecha);
-                        setState(() => _fechaFin = fecha);
-                      }
-                    },
-                  ),
-
-                  const Divider(),
-
-                  // Tipo de movimiento
-                  ListTile(
-                    leading: const Icon(Icons.category),
-                    title: const Text('Tipo de movimiento'),
-                    subtitle: Text(_tipoSeleccionado),
-                  ),
-                  Wrap(
-                    spacing: 8,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ChoiceChip(
-                        label: const Text('Todos'),
-                        selected: _tipoSeleccionado == 'TODOS',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setModalState(() => _tipoSeleccionado = 'TODOS');
-                            setState(() => _tipoSeleccionado = 'TODOS');
-                          }
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('Ingresos'),
-                        selected: _tipoSeleccionado == 'INGRESO',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setModalState(() => _tipoSeleccionado = 'INGRESO');
-                            setState(() => _tipoSeleccionado = 'INGRESO');
-                          }
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('Egresos'),
-                        selected: _tipoSeleccionado == 'EGRESO',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setModalState(() => _tipoSeleccionado = 'EGRESO');
-                            setState(() => _tipoSeleccionado = 'EGRESO');
-                          }
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('Transferencias'),
-                        selected: _tipoSeleccionado == 'TRANSFERENCIA',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setModalState(() => _tipoSeleccionado = 'TRANSFERENCIA');
-                            setState(() => _tipoSeleccionado = 'TRANSFERENCIA');
-                          }
-                        },
-                      ),
+                      Text('Filtrar Movimientos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
                     ],
                   ),
-
-                  const Divider(),
-
-                  // Caja
-                  cajasAsync.when(
-                    data: (cajas) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.account_balance_wallet),
-                            title: const Text('Caja'),
-                            subtitle: Text(_cajaSeleccionada == null
-                                ? 'Todas las cajas'
-                                : () {
-                                    try {
-                                      return cajas.firstWhere((c) => c.id == _cajaSeleccionada).nombre;
-                                    } catch (_) {
-                                      return 'Caja no encontrada';
-                                    }
-                                  }()),
-                          ),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              ChoiceChip(
-                                label: const Text('Todas'),
-                                selected: _cajaSeleccionada == null,
-                                onSelected: (selected) {
-                                  if (selected) {
-                                    setModalState(() => _cajaSeleccionada = null);
-                                    setState(() => _cajaSeleccionada = null);
-                                  }
-                                },
-                              ),
-                              ...cajas.map((caja) {
-                                return ChoiceChip(
-                                  label: Text(caja.nombre),
-                                  selected: _cajaSeleccionada == caja.id,
-                                  onSelected: (selected) {
-                                    if (selected) {
-                                      setModalState(() => _cajaSeleccionada = caja.id);
-                                      setState(() => _cajaSeleccionada = caja.id);
-                                    }
-                                  },
-                                );
-                              }),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                    loading: () => const CircularProgressIndicator(),
-                    error: (_, __) => const Text('Error al cargar cajas'),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Botones
+                  const SizedBox(height: 24),
+                  
+                  // Fechas
+                  _buildFilterLabel('RANGO DE TIEMPO'),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              _fechaInicio = DateTime.now().subtract(const Duration(days: 30));
-                              _fechaFin = DateTime.now();
-                              _cajaSeleccionada = null;
-                              _tipoSeleccionado = 'TODOS';
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Limpiar'),
+                        child: _buildFilterDateCard(
+                          'Inicio', 
+                          _fechaInicio, 
+                          onTap: () async {
+                            final fecha = await showDatePicker(
+                              context: context,
+                              initialDate: _fechaInicio,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (fecha != null) {
+                              setModalState(() => _fechaInicio = fecha);
+                              setState(() => _fechaInicio = fecha);
+                            }
+                          }
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: FilledButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Aplicar'),
+                        child: _buildFilterDateCard(
+                          'Fin', 
+                          _fechaFin, 
+                          onTap: () async {
+                            final fecha = await showDatePicker(
+                              context: context,
+                              initialDate: _fechaFin,
+                              firstDate: _fechaInicio,
+                              lastDate: DateTime.now(),
+                            );
+                            if (fecha != null) {
+                              setModalState(() => _fechaFin = fecha);
+                              setState(() => _fechaFin = fecha);
+                            }
+                          }
                         ),
                       ),
                     ],
                   ),
+                  
+                  const SizedBox(height: 24),
+                  _buildFilterLabel('TIPO DE OPERACIÓN'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildModernChip('Todos', _tipoSeleccionado == 'TODOS', () {
+                         setModalState(() => _tipoSeleccionado = 'TODOS');
+                         setState(() => _tipoSeleccionado = 'TODOS');
+                      }),
+                      _buildModernChip('Ingresos', _tipoSeleccionado == 'INGRESO', () {
+                         setModalState(() {
+                           _tipoSeleccionado = 'INGRESO';
+                           _categoriaSeleccionada = null;
+                         });
+                         setState(() {
+                           _tipoSeleccionado = 'INGRESO';
+                           _categoriaSeleccionada = null;
+                         });
+                      }),
+                      _buildModernChip('Egresos', _tipoSeleccionado == 'EGRESO', () {
+                         setModalState(() {
+                           _tipoSeleccionado = 'EGRESO';
+                           _categoriaSeleccionada = null;
+                         });
+                         setState(() {
+                           _tipoSeleccionado = 'EGRESO';
+                           _categoriaSeleccionada = null;
+                         });
+                      }),
+                      _buildModernChip('Transferencias', _tipoSeleccionado == 'TRANSFERENCIA', () {
+                         setModalState(() {
+                           _tipoSeleccionado = 'TRANSFERENCIA';
+                           _categoriaSeleccionada = null;
+                         });
+                         setState(() {
+                           _tipoSeleccionado = 'TRANSFERENCIA';
+                           _categoriaSeleccionada = null;
+                         });
+                      }),
+                    ],
+                  ),
 
-                  SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                  if (_tipoSeleccionado == 'INGRESO' || _tipoSeleccionado == 'EGRESO') ...[
+                    const SizedBox(height: 24),
+                    _buildFilterLabel('CATEGORÍA ESPECÍFICA'),
+                    const SizedBox(height: 12),
+                    ref.watch(categoriasProvider(_tipoSeleccionado)).when(
+                      data: (categorias) => Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildModernChip('Todas', _categoriaSeleccionada == null, () {
+                            setModalState(() => _categoriaSeleccionada = null);
+                            setState(() => _categoriaSeleccionada = null);
+                          }),
+                          ...categorias.map((cat) => _buildModernChip(cat, _categoriaSeleccionada == cat, () {
+                            setModalState(() => _categoriaSeleccionada = cat);
+                            setState(() => _categoriaSeleccionada = cat);
+                          })),
+                        ],
+                      ),
+                      loading: () => const LinearProgressIndicator(),
+                      error: (_, __) => const Text('Error al cargar categorías'),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+                  _buildFilterLabel('CAJA PARTICULAR'),
+                  const SizedBox(height: 12),
+                  cajasAsync.when(
+                    data: (cajas) => Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildModernChip('Todas', _cajaSeleccionada == null, () {
+                          setModalState(() => _cajaSeleccionada = null);
+                          setState(() => _cajaSeleccionada = null);
+                        }),
+                        ...cajas.map((c) => _buildModernChip(c.nombre, _cajaSeleccionada == c.id, () {
+                          setModalState(() => _cajaSeleccionada = c.id);
+                          setState(() => _cajaSeleccionada = c.id);
+                        })),
+                      ],
+                    ),
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const Text('Error al cargar cajas'),
+                  ),
+
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Aplicar Filtros', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
                 ],
               ),
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildFilterLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+        letterSpacing: 1.1,
+      ),
+    );
+  }
+
+  Widget _buildFilterDateCard(String label, DateTime date, {required VoidCallback onTap}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+            const SizedBox(height: 4),
+            Text(DateFormat('dd/MM/yyyy').format(date), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernChip(String label, bool isSelected, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      backgroundColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+      selectedColor: const Color(0xFF8B5CF6).withOpacity(0.2),
+      labelStyle: TextStyle(
+        color: isSelected ? const Color(0xFF8B5CF6) : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFF8B5CF6) : (isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFE2E8F0)),
+        ),
+      ),
     );
   }
 }

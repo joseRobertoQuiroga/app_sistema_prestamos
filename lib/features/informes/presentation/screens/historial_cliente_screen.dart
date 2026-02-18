@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../clientes/domain/entities/cliente.dart';
 import '../../../clientes/presentation/providers/cliente_provider.dart';
 import '../../../prestamos/presentation/providers/prestamo_provider.dart';
 import '../../../prestamos/domain/entities/prestamo.dart';
@@ -72,10 +75,13 @@ class _HistorialClienteScreenState
       return Center(child: Text('Error: ${clientesState.error}'));
     }
 
-    final cliente = clientesState.clientes.firstWhere(
-      (c) => c.id == _clienteSeleccionadoId,
-      orElse: () => clientesState.clientes.first,
-    );
+    // Safe lookup for selected client
+    final Cliente cliente;
+    if (clientesState.clientes.any((c) => c.id == _clienteSeleccionadoId)) {
+      cliente = clientesState.clientes.firstWhere((c) => c.id == _clienteSeleccionadoId);
+    } else {
+      cliente = clientesState.clientes.first;
+    }
 
     return prestamosAsync.when(
       data: (todosLosPrestamos) {
@@ -215,7 +221,7 @@ class _HistorialClienteScreenState
     );
   }
 
-  Widget _buildInfoBasica(dynamic cliente, ThemeData theme) {
+  Widget _buildInfoBasica(Cliente cliente, ThemeData theme) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -229,7 +235,7 @@ class _HistorialClienteScreenState
               ),
             ),
             const Divider(),
-            _buildInfoRow('Cédula:', cliente.cedula, theme),
+            _buildInfoRow('Cédula:', cliente.ci, theme),
             _buildInfoRow('Teléfono:', cliente.telefono ?? 'N/A', theme),
             _buildInfoRow('Dirección:', cliente.direccion ?? 'N/A', theme),
             if (cliente.email != null && cliente.email!.isNotEmpty)
@@ -366,9 +372,8 @@ class _HistorialClienteScreenState
               ],
               rows: [
                 ...pagos.take(50).map((pago) {
-                  final prestamo = prestamos.firstWhere(
+                  final prestamo = prestamos.firstWhereOrNull(
                     (p) => p.id == pago.prestamoId,
-                    orElse: () => null,
                   );
                   return DataRow(cells: [
                     DataCell(Text(

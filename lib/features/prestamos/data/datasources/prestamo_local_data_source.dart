@@ -412,6 +412,22 @@ class PrestamoLocalDataSource {
     );
   }
 
+  // Sincronizar estados de todos los préstamos activos/mora/vencidos
+  Future<void> sincronizarTodosLosEstados() async {
+    // Obtener préstamos que podrían cambiar de estado (no pagados ni cancelados)
+    final prestamos = await (database.select(database.prestamos)
+          ..where((tbl) => tbl.estado.isNotIn([
+                EstadoPrestamo.pagado.toStorageString(),
+                EstadoPrestamo.cancelado.toStorageString(),
+              ])))
+        .get();
+
+    for (final p in prestamos) {
+      await actualizarEstadosCuotas(p.id);
+      await actualizarEstadoPrestamo(p.id);
+    }
+  }
+
   // Actualizar estados de las cuotas
   Future<void> actualizarEstadosCuotas(int prestamoId) async {
     final cuotas = await getCuotasByPrestamo(prestamoId);
@@ -423,7 +439,8 @@ class PrestamoLocalDataSource {
       if (cuota.estaPagada) {
         nuevoEstado = EstadoCuota.pagada;
       } else if (now.isAfter(cuota.fechaVencimiento)) {
-        // Calcular mora
+        // Calcular mora solo si no tiene pagos parciales que la cubran ya? 
+        // En este sistema la mora se calcula sobre el interes de la cuota.
         final mora = cuota.calcularMora();
         nuevoEstado = EstadoCuota.mora;
 

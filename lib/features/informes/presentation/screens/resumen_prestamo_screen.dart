@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../prestamos/domain/entities/prestamo.dart';
 import '../../../prestamos/presentation/providers/prestamo_provider.dart';
+import '../../../clientes/domain/entities/cliente.dart';
 import '../../../clientes/presentation/providers/cliente_provider.dart';
 import '../../../pagos/presentation/providers/pago_provider.dart';
 import '../widgets/selector_prestamo_widget.dart';
@@ -65,10 +66,12 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
 
     return prestamosAsync.when(
       data: (prestamos) {
-        final prestamo = prestamos.cast<Prestamo>().firstWhere(
-          (p) => p.id == _prestamoSeleccionadoId,
-          orElse: () => prestamos.first,
-        );
+        final Prestamo prestamo;
+        if (prestamos.any((p) => p.id == _prestamoSeleccionadoId)) {
+          prestamo = prestamos.firstWhere((p) => p.id == _prestamoSeleccionadoId);
+        } else {
+          prestamo = prestamos.first;
+        }
 
         if (clientesState.isLoading) {
           return const Center(child: CircularProgressIndicator());
@@ -83,7 +86,7 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
         }
 
         // Find cliente or use first as fallback
-        final cliente = clientesState.clientes.any((c) => c.id == prestamo.clienteId)
+        final Cliente cliente = clientesState.clientes.any((c) => c.id == prestamo.clienteId)
             ? clientesState.clientes.firstWhere((c) => c.id == prestamo.clienteId)
             : clientesState.clientes.first;
 
@@ -189,8 +192,8 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
   }
 
   Widget _buildInfoPrincipal(
-    dynamic prestamo,
-    dynamic cliente,
+    Prestamo prestamo,
+    Cliente cliente,
     ThemeData theme,
   ) {
     return Card(
@@ -214,7 +217,7 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(cliente.nombreCompleto),
-                      Text('Cédula: ${cliente.cedula}',
+                      Text('Cédula: ${cliente.ci}',
                           style: theme.textTheme.bodySmall),
                     ],
                   ),
@@ -365,10 +368,10 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
             Color estadoColor = Colors.grey;
             String estado = 'Pendiente';
             
-            if (cuota.pagada) {
+            if (cuota.estaPagada) {
               estadoColor = Colors.green;
               estado = 'Pagada';
-            } else if (cuota.vencida) {
+            } else if (cuota.estaVencida) {
               estadoColor = Colors.red;
               estado = 'Vencida';
             }

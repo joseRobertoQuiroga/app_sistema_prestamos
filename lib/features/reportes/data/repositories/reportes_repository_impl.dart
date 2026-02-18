@@ -4,17 +4,28 @@ import '../../domain/entities/reportes_entities.dart';
 import '../../domain/repositories/reportes_repository.dart';
 import '../datasources/reportes_local_data_source.dart';
 
+import '../../../prestamos/domain/usecases/prestamo_usecases.dart';
+
 /// Implementación del repositorio de reportes
 class ReportesRepositoryImpl implements ReportesRepository {
   final ReportesLocalDataSource dataSource;
+  final SincronizarEstados sincronizarEstados;
 
-  ReportesRepositoryImpl(this.dataSource);
+  ReportesRepositoryImpl(this.dataSource, this.sincronizarEstados);
 
   @override
   Future<Either<Failure, ResultadoReporte>> generarReporte(
     ConfiguracionReporte configuracion,
   ) async {
     try {
+      // Sincronizar estados antes de generar reportes para asegurar datos frescos
+      // Ignoramos el error de sincronización para no bloquear el reporte (usamos datos previos)
+      final syncResult = await sincronizarEstados();
+      syncResult.fold(
+        (f) => print('Aviso: Error en sincronización de estados: ${f.message}'),
+        (_) => null,
+      );
+
       String rutaArchivo;
 
       // Generar reporte según el tipo

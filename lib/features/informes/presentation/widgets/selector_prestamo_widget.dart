@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../prestamos/presentation/providers/prestamo_provider.dart';
 import '../../../prestamos/domain/entities/prestamo.dart';
+import '../../../clientes/domain/entities/cliente.dart';
 import '../../../clientes/presentation/providers/cliente_provider.dart';
 
 /// Widget de diálogo para seleccionar un préstamo
@@ -64,8 +65,8 @@ class _SelectorPrestamoWidgetState
                   
                   final clientes = clientesState.clientes;
                   
-                  final prestamosCompletos = prestamos.map((prestamo) {
-                    final cliente = clientes.any((c) => c.id == prestamo.clienteId)
+                  final List<Map<String, dynamic>> prestamosCompletos = prestamos.map((prestamo) {
+                    final Cliente? cliente = clientes.any((c) => c.id == prestamo.clienteId)
                         ? clientes.firstWhere((c) => c.id == prestamo.clienteId)
                         : null;
                     return {
@@ -76,14 +77,14 @@ class _SelectorPrestamoWidgetState
 
                   final prestamosFiltrados = prestamosCompletos.where((item) {
                     if (_filtro.isEmpty) return true;
-                    final prestamo = item['prestamo'] as dynamic;
-                    final cliente = item['cliente'] as dynamic;
+                    final prestamo = item['prestamo'] as Prestamo;
+                    final cliente = item['cliente'] as Cliente?;
                     if (cliente == null) return false;
                     return (prestamo.codigo ?? '')
                             .toLowerCase()
                             .contains(_filtro) ||
                         cliente.nombreCompleto.toLowerCase().contains(_filtro) ||
-                        cliente.cedula.toLowerCase().contains(_filtro);
+                        cliente.ci.toLowerCase().contains(_filtro);
                   }).toList();
 
                   return ListView.builder(
@@ -91,8 +92,8 @@ class _SelectorPrestamoWidgetState
                     itemCount: prestamosFiltrados.length,
                     itemBuilder: (context, index) {
                       final item = prestamosFiltrados[index];
-                      final prestamo = item['prestamo'] as dynamic;
-                      final cliente = item['cliente'] as dynamic;
+                      final prestamo = item['prestamo'] as Prestamo;
+                      final cliente = item['cliente'] as Cliente?;
 
                       Color estadoColor = Colors.grey;
                       String estado = 'Activo';
