@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/pago_provider.dart';
 import '../../../caja/presentation/providers/caja_provider.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
+import '../../../prestamos/presentation/providers/prestamo_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/formatters.dart';
 
@@ -33,6 +34,7 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
   String _metodoPago = 'EFECTIVO';
   int? _cajaId;
   bool _isLoading = false;
+  bool _esAbonoCapital = false; // Estado para el nuevo switch
 
   @override
   void dispose() {
@@ -62,6 +64,7 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
       observaciones: _observacionesController.text.trim().isEmpty 
           ? null 
           : _observacionesController.text.trim(),
+      esAbonoCapital: _esAbonoCapital, // Pasar valor del switch
     );
 
     setState(() => _isLoading = false);
@@ -77,13 +80,20 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
           );
         },
         (resultado) {
-          // Invalidar providers para refrescar datos
+          // Invalidar providers globales
           ref.invalidate(saldoTotalProvider);
           ref.invalidate(dashboardKPIsProvider);
           ref.invalidate(resumenGeneralProvider);
           ref.invalidate(movimientosGeneralesProvider);
           ref.invalidate(cajasListProvider);
           ref.invalidate(cajasActivasProvider);
+          // Invalidar providers del préstamo para refrescar su detalle y pagos
+          ref.invalidate(pagosListProvider(widget.prestamoId));
+          ref.invalidate(resumenPagosProvider(widget.prestamoId));
+          ref.invalidate(prestamoDetailProvider(widget.prestamoId));
+          ref.invalidate(cuotasListProvider(widget.prestamoId));
+          ref.invalidate(resumenCuotasProvider(widget.prestamoId));
+          ref.invalidate(prestamosListProvider);
           
           // Mostrar diálogo con resultado
           _mostrarResultado(resultado);
@@ -204,6 +214,16 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
                 borderRadius: BorderRadius.circular(8),
                 side: BorderSide(color: Theme.of(context).colorScheme.outline),
               ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Switch Abono a Capital (Nuevo)
+            SwitchListTile(
+              title: const Text('Abono directo a Capital'),
+              subtitle: const Text('No cobra interés en este pago, reduce saldo directamente.'),
+              value: _esAbonoCapital,
+              onChanged: (val) => setState(() => _esAbonoCapital = val),
+              secondary: const Icon(Icons.savings_outlined),
             ),
             const SizedBox(height: 16),
 

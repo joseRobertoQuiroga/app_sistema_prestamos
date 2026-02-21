@@ -6,6 +6,7 @@ import '../../domain/entities/prestamo.dart';
 import '../../domain/entities/cuota.dart';
 import '../providers/prestamo_provider.dart';
 import '../widgets/tabla_amortizacion_widget.dart';
+import '../../../../features/pagos/presentation/providers/pago_provider.dart'; // Importar provider de pagos
 import '../../../clientes/presentation/providers/cliente_provider.dart';
 import '../../../clientes/domain/entities/cliente.dart';
 import '../../../caja/presentation/providers/caja_provider.dart';
@@ -48,6 +49,8 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
   bool _isLoading = false;
   bool _isCalculating = false;
 
+  bool _hasPayments = false; // Estado para bloqueo de edición
+  
   @override
   void initState() {
     super.initState();
@@ -60,6 +63,56 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
     _montoController.addListener(_onFormChanged);
     _tasaController.addListener(_onFormChanged);
     _plazoController.addListener(_onFormChanged);
+    
+    // Verificar si el préstamo tiene pagos (Solo en modo edición)
+    // Verificar si el préstamo tiene pagos (Solo en modo edición)
+    if (widget.prestamoId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkExistingPayments();
+        _loadPrestamo();
+      });
+    }
+  }
+
+  Future<void> _checkExistingPayments() async {
+    final pagos = await ref.read(pagosListProvider(widget.prestamoId!).future);
+    if (pagos.isNotEmpty && mounted) {
+      setState(() => _hasPayments = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este préstamo tiene pagos registrados. Solo se pueden editar observaciones.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadPrestamo() async {
+    setState(() => _isLoading = true);
+    try {
+      final prestamo = await ref.read(getPrestamoByIdProvider)(widget.prestamoId!).then((result) => result.fold((l) => throw Exception(l.message), (r) => r));
+      
+      if (mounted) {
+        setState(() {
+          _montoController.text = prestamo.montoOriginal.toStringAsFixed(0); // Ocultar decimales si es entero visualmente
+          _tasaController.text = prestamo.tasaInteres.toString();
+          _plazoController.text = prestamo.plazoMeses.toString();
+          _observacionesController.text = prestamo.observaciones ?? '';
+          _clienteSeleccionado = prestamo.clienteId;
+          _cajaSeleccionada = prestamo.cajaId;
+          _tipoInteres = prestamo.tipoInteres;
+          _fechaInicio = prestamo.fechaInicio;
+        });
+        
+        // Recalcular vista previa con los datos cargados
+        await _calcularVistaPrevia();
+      }
+    } catch (e) {
+      if (mounted) _showError('Error al cargar préstamo: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -137,42 +190,65 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final generarCodigo = ref.read(generarCodigoPrestamoProvider);
-      final codigoResult = await generarCodigo();
-      final codigo = codigoResult.fold((f) => throw Exception(f.message), (c) => c);
-
       final fechaVencimiento = DateTime(_fechaInicio.year, _fechaInicio.month + int.parse(_plazoController.text), _fechaInicio.day);
+      
+      // Si es edición, mantenemos el código original. Si es nuevo, generamos uno.
+      String codigo;
+      DateTime fechaRegistro;
+
+      if (widget.prestamoId != null) {
+        // En edición, recuperamos datos inmutables del préstamo original
+        final prestamoOriginal = await ref.read(getPrestamoByIdProvider)(widget.prestamoId!).then((r) => r.getOrElse(() => throw Exception('No encontrado')));
+        codigo = prestamoOriginal.codigo;
+        fechaRegistro = prestamoOriginal.fechaRegistro;
+      } else {
+        final generarCodigo = ref.read(generarCodigoPrestamoProvider);
+        final codigoResult = await generarCodigo();
+        codigo = codigoResult.fold((f) => throw Exception(f.message), (c) => c);
+        fechaRegistro = DateTime.now();
+      }
 
       final prestamo = Prestamo(
+        id: widget.prestamoId, // Importante para Update
         codigo: codigo,
         clienteId: _clienteSeleccionado!,
         cajaId: _cajaSeleccionada!,
         montoOriginal: double.parse(_montoController.text),
         montoTotal: _totalesCalculados!['montoTotal']!,
-        saldoPendiente: _totalesCalculados!['montoTotal']!,
+        saldoPendiente: widget.prestamoId != null 
+            ? _totalesCalculados!['montoTotal']! // TODO: Esto reinicia el saldo. Si hay pagos, no deberíamos permitir editar monto.
+            : _totalesCalculados!['montoTotal']!,
         tasaInteres: double.parse(_tasaController.text),
         tipoInteres: _tipoInteres,
         plazoMeses: int.parse(_plazoController.text),
         cuotaMensual: _totalesCalculados!['cuotaMensual']!,
         fechaInicio: _fechaInicio,
         fechaVencimiento: fechaVencimiento,
-        estado: EstadoPrestamo.activo,
+        estado: EstadoPrestamo.activo, // TODO: Mantener estado original si es edición?
         observaciones: _observacionesController.text.isEmpty ? null : _observacionesController.text,
-        fechaRegistro: DateTime.now(),
+        fechaRegistro: fechaRegistro,
       );
 
-      final result = await ref.read(createPrestamoProvider)(prestamo);
+      final result = widget.prestamoId != null
+          ? await ref.read(updatePrestamoProvider)(prestamo)
+          : await ref.read(createPrestamoProvider)(prestamo);
+          
       result.fold(
         (f) { setState(() => _isLoading = false); _showError(f.message); },
         (_) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Préstamo creado con éxito'), backgroundColor: Colors.green));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(widget.prestamoId != null ? 'Préstamo actualizado' : 'Préstamo creado con éxito'), 
+            backgroundColor: Colors.green
+          ));
           Navigator.pop(context, true);
         },
       );
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showError('Error al crear préstamo: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Error al procesar préstamo: $e');
+      }
     }
   }
 
@@ -211,57 +287,67 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
                           title: 'IDENTIFICACIÓN Y ORIGEN',
                           icon: Icons.account_balance_rounded,
                           children: [
-                            _buildClienteSelector(clientesAsync),
+                            IgnorePointer(ignoring: _hasPayments, child: Opacity(opacity: _hasPayments ? 0.5 : 1, child: _buildClienteSelector(clientesAsync))),
                             const SizedBox(height: 16),
-                            _buildCajaSelector(cajasAsync),
+                            IgnorePointer(ignoring: _hasPayments, child: Opacity(opacity: _hasPayments ? 0.5 : 1, child: _buildCajaSelector(cajasAsync))),
                           ],
                         ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
                         const SizedBox(height: 24),
 
                         // SECCIÓN: CONDICIONES
-                        _buildFormSection(
-                          context,
-                          title: 'CONDICIONES DEL PRÉSTAMO',
-                          icon: Icons.monetization_on_rounded,
-                          children: [
-                            CustomTextField(
-                              controller: _montoController,
-                              label: 'Monto Principal',
-                              keyboardType: TextInputType.number,
-                              prefixIcon: Icons.attach_money_rounded,
-                              validator: (v) => Validators.amount(v),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: CustomTextField(
-                                    controller: _tasaController,
-                                    label: 'Tasa/Año (%)',
+                          // CONDICIONES DEL PRÉSTAMO
+                          // Si hay pagos, deshabilitamos toda la sección de condiciones financieras
+                          IgnorePointer(
+                            ignoring: _hasPayments,
+                            child: Opacity(
+                              opacity: _hasPayments ? 0.5 : 1,
+                              child: _buildFormSection(
+                                context,
+                                title: 'CONDICIONES DEL PRÉSTAMO',
+                                icon: Icons.monetization_on_rounded,
+                                children: [
+                                  CustomTextField(
+                                    controller: _montoController,
+                                    label: 'Monto Principal',
                                     keyboardType: TextInputType.number,
-                                    prefixIcon: Icons.percent_rounded,
-                                    validator: (v) => Validators.interestRate(v),
+                                    prefixIcon: Icons.attach_money_rounded,
+                                    validator: (v) => Validators.amount(v),
                                   ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: CustomTextField(
-                                    controller: _plazoController,
-                                    label: 'Plazo (Meses)',
-                                    keyboardType: TextInputType.number,
-                                    prefixIcon: Icons.calendar_month_rounded,
-                                    validator: (v) => Validators.termMonths(v),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: CustomTextField(
+                                          controller: _tasaController,
+                                          label: _tipoInteres == TipoInteres.wilson 
+                                              ? 'Tasa/Mes (%)' 
+                                              : 'Tasa/Año (%)',
+                                          keyboardType: TextInputType.number,
+                                          prefixIcon: Icons.percent_rounded,
+                                          validator: (v) => Validators.interestRate(v),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: CustomTextField(
+                                          controller: _plazoController,
+                                          label: 'Plazo (Meses)',
+                                          keyboardType: TextInputType.number,
+                                          prefixIcon: Icons.calendar_month_rounded,
+                                          validator: (v) => Validators.termMonths(v),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 16),
+                                  _buildTipoInteresSelector(),
+                                  const SizedBox(height: 16),
+                                  _buildFechaInicioSelector(),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            _buildTipoInteresSelector(),
-                            const SizedBox(height: 16),
-                            _buildFechaInicioSelector(),
-                          ],
-                        ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
+                          ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
 
                         const SizedBox(height: 24),
 
@@ -273,18 +359,43 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
                             icon: Icons.calculate_rounded,
                             children: [
                               _buildResumenCalculado(),
-                              const SizedBox(height: 16),
-                              CustomButton(
-                                text: _mostrarVistaPrevia
-                                    ? 'OCULTAR TABLA'
-                                    : 'VER TABLA DE AMORTIZACIÓN',
-                                type: ButtonType.text,
-                                onPressed: () => setState(
-                                    () => _mostrarVistaPrevia = !_mostrarVistaPrevia),
-                              ),
-                              if (_mostrarVistaPrevia && _vistaPrevia != null)
-                                TablaAmortizacionWidget(
-                                    cuotas: _vistaPrevia!, compact: true),
+                              // Wilson no muestra tabla de amortización pre-generada
+                              if (_tipoInteres != TipoInteres.wilson) ...[
+                                const SizedBox(height: 16),
+                                CustomButton(
+                                  text: _mostrarVistaPrevia
+                                      ? 'OCULTAR TABLA'
+                                      : 'VER TABLA DE AMORTIZACIÓN',
+                                  type: ButtonType.text,
+                                  onPressed: () => setState(
+                                      () => _mostrarVistaPrevia = !_mostrarVistaPrevia),
+                                ),
+                                if (_mostrarVistaPrevia && _vistaPrevia != null)
+                                  TablaAmortizacionWidget(
+                                      cuotas: _vistaPrevia!, compact: true),
+                              ] else ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.info_outline, size: 16, color: Colors.amber),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Interés Wilson: la tabla de pagos se genera dinámicamente con cada pago realizado.',
+                                          style: TextStyle(fontSize: 11, color: Colors.amber),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
                           const SizedBox(height: 24),
@@ -337,7 +448,7 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
                         Expanded(
                           flex: 2,
                           child: CustomButton(
-                            text: 'CREAR PRÉSTAMO',
+                            text: widget.prestamoId != null ? 'ACTUALIZAR' : 'CREAR PRÉSTAMO',
                             onPressed: _guardarPrestamo,
                             isLoading: _isLoading,
                           ),
@@ -416,9 +527,11 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            _buildRadioOption('Simple (Interés)', TipoInteres.simple),
-            const SizedBox(width: 12),
-            _buildRadioOption('Compuesto (Francés)', TipoInteres.compuesto),
+            _buildRadioOption('Simple', TipoInteres.simple),
+            const SizedBox(width: 8),
+            _buildRadioOption('Compuesto', TipoInteres.compuesto),
+            const SizedBox(width: 8),
+            _buildRadioOption('Wilson', TipoInteres.wilson),
           ],
         ),
       ],
@@ -459,16 +572,27 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
   }
 
   Widget _buildResumenCalculado() {
+    final isWilson = _tipoInteres == TipoInteres.wilson;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.05), borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          _buildResumenItem('Monto Original', Formatters.formatCurrency(_totalesCalculados!['montoOriginal'] ?? 0)),
-          _buildResumenItem('Interés Total', Formatters.formatCurrency(_totalesCalculados!['interesTotal'] ?? 0), color: Colors.orange),
+          _buildResumenItem('Monto Original', Formatters.formatCurrency(double.tryParse(_montoController.text) ?? 0)),
+          if (isWilson) ...[
+            _buildResumenItem('Interés Mensual (est.)', Formatters.formatCurrency(_totalesCalculados!['interesMensual'] ?? 0), color: Colors.orange),
+            _buildResumenItem('Interés Total (máx.)', Formatters.formatCurrency(_totalesCalculados!['interesTotal'] ?? 0), color: Colors.orange),
+          ] else ...[
+            _buildResumenItem('Interés Total', Formatters.formatCurrency(_totalesCalculados!['interesTotal'] ?? 0), color: Colors.orange),
+          ],
           const Divider(height: 24),
           _buildResumenItem('TOTAL A PAGAR', Formatters.formatCurrency(_totalesCalculados!['montoTotal'] ?? 0), isBold: true),
-          _buildResumenItem('CUOTA MENSUAL', Formatters.formatCurrency(_totalesCalculados!['cuotaMensual'] ?? 0), isBold: true, color: AppTheme.primaryBrand),
+          _buildResumenItem(
+            isWilson ? 'CUOTA ESTIMADA' : 'CUOTA MENSUAL', 
+            Formatters.formatCurrency(_totalesCalculados!['cuotaMensual'] ?? 0), 
+            isBold: true, 
+            color: AppTheme.primaryBrand,
+          ),
         ],
       ),
     );

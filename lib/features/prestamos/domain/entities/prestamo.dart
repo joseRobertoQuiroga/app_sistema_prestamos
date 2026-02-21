@@ -52,7 +52,9 @@ class Prestamo extends Equatable {
   }
 
   // Calcular monto pagado
-  double get montoPagado => montoTotal - saldoPendiente;
+  double get montoPagado {
+    return montoTotal - saldoPendiente;
+  }
 
   // Verificar si está en mora
   bool get enMora => estado == EstadoPrestamo.mora;
@@ -133,7 +135,8 @@ class Prestamo extends Equatable {
 // Enumeración de tipos de interés
 enum TipoInteres {
   simple,
-  compuesto;
+  compuesto,
+  wilson;
 
   String get displayName {
     switch (this) {
@@ -141,6 +144,8 @@ enum TipoInteres {
         return 'Interés Simple';
       case TipoInteres.compuesto:
         return 'Interés Compuesto';
+      case TipoInteres.wilson:
+        return 'Interés Wilson';
     }
   }
 
@@ -150,6 +155,8 @@ enum TipoInteres {
         return TipoInteres.simple;
       case 'COMPUESTO':
         return TipoInteres.compuesto;
+      case 'WILSON':
+        return TipoInteres.wilson;
       default:
         return TipoInteres.simple;
     }
@@ -161,6 +168,8 @@ enum TipoInteres {
         return 'SIMPLE';
       case TipoInteres.compuesto:
         return 'COMPUESTO';
+      case TipoInteres.wilson:
+        return 'WILSON';
     }
   }
 }

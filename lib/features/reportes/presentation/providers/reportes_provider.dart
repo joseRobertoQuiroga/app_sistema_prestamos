@@ -92,6 +92,12 @@ final importarPrestamosUseCaseProvider = Provider<ImportarPrestamos>((ref) {
   return ImportarPrestamos(repository);
 });
 
+/// Provider para el caso de uso de importar Wilson completo
+final importarWilsonCompletoUseCaseProvider = Provider<ImportarWilsonCompleto>((ref) {
+  final repository = ref.watch(reportesRepositoryProvider);
+  return ImportarWilsonCompleto(repository);
+});
+
 // ============================================================================
 // ESTADOS DE UI
 // ============================================================================

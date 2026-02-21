@@ -20,6 +20,7 @@ class PagoRepositoryImpl implements PagoRepository {
     String? metodoPago,
     String? referencia,
     String? observaciones,
+    bool esAbonoCapital = false, // Nuevo parámetro
   }) async {
     try {
       final resultado = await localDataSource.registrarPago(
@@ -30,6 +31,7 @@ class PagoRepositoryImpl implements PagoRepository {
         metodoPago: metodoPago,
         referencia: referencia,
         observaciones: observaciones,
+        esAbonoCapital: esAbonoCapital, // Pasar al data source
       );
       return Right(resultado);
     } catch (e) {

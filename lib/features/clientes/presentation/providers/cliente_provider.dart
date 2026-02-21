@@ -66,7 +66,11 @@ final clientesActivosProvider = FutureProvider<List<Cliente>>((ref) async {
   
   return result.fold(
     (failure) => throw Exception(failure.message),
-    (clientes) => clientes,
+    (clientes) {
+      final sorted = List<Cliente>.from(clientes);
+      sorted.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+      return sorted;
+    },
   );
 });
 
@@ -138,11 +142,11 @@ class ClientesNotifier extends StateNotifier<ClientesState> {
         isLoading: false,
         error: failure.message,
       ),
-      (clientes) => state = state.copyWith(
-        clientes: clientes,
-        isLoading: false,
-        error: null,
-      ),
+      (clientes) {
+        final sorted = List<Cliente>.from(clientes);
+        sorted.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+        state = state.copyWith(clientes: sorted, isLoading: false, error: null);
+      },
     );
   }
 
@@ -161,11 +165,11 @@ class ClientesNotifier extends StateNotifier<ClientesState> {
         isLoading: false,
         error: failure.message,
       ),
-      (clientes) => state = state.copyWith(
-        clientes: clientes,
-        isLoading: false,
-        error: null,
-      ),
+      (clientes) {
+        final sorted = List<Cliente>.from(clientes);
+        sorted.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+        state = state.copyWith(clientes: sorted, isLoading: false, error: null);
+      },
     );
   }
 

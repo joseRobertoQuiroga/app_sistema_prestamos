@@ -318,6 +318,79 @@ class ExcelService {
     return await _guardarArchivo(excel, 'RendimientoCartera');
   }
 
+  /// Generar plantilla de préstamo Wilson con historial
+  Future<String> generarPlantillaWilsonCompleto() async {
+    final excel = Excel.createExcel();
+    
+    // 1. Hoja de Datos del Préstamo
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.rename('Sheet1', 'DATOS PRESTAMO');
+    }
+    final loanSheet = excel['DATOS PRESTAMO'];
+    
+    final loanHeaders = [
+      'Documento Cliente *',
+      'Nombre Caja *',
+      'Monto Original *',
+      'Tasa Mensual (%) *',
+      'Plazo Meses *',
+      'Fecha Inicio (DD/MM/YYYY) *',
+      'Observaciones',
+    ];
+    
+    _addHeaders(loanSheet, loanHeaders);
+    
+    // Ejemplo Préstamo
+    loanSheet.appendRow([
+      TextCellValue('1234567'),
+      TextCellValue('Caja Principal'),
+      DoubleCellValue(5000.0),
+      DoubleCellValue(10.0),
+      IntCellValue(12),
+      TextCellValue('01/01/2024'),
+      TextCellValue('Préstamo Wilson con historial'),
+    ]);
+    
+    _autoFitColumns(loanSheet, loanHeaders.length);
+    
+    // 2. Hoja de Historial de Pagos
+    final historySheet = excel['HISTORIAL PAGOS'];
+    
+    final historyHeaders = [
+      'Documento Cliente (Solo Ref) *',
+      'Monto Pago *',
+      'Fecha Pago (DD/MM/YYYY) *',
+      'Método Pago',
+      'Es Abono a Capital (SÍ/NO)',
+      'Referencia / Observaciones',
+    ];
+    
+    _addHeaders(historySheet, historyHeaders);
+    
+    // Ejemplo Pagos
+    historySheet.appendRow([
+      TextCellValue('1234567'),
+      DoubleCellValue(500.0),
+      TextCellValue('01/02/2024'),
+      TextCellValue('EFECTIVO'),
+      TextCellValue('NO'),
+      TextCellValue('Pago cuota febrero'),
+    ]);
+    
+    historySheet.appendRow([
+      TextCellValue('1234567'),
+      DoubleCellValue(500.0),
+      TextCellValue('01/03/2024'),
+      TextCellValue('TRANSFERENCIA'),
+      TextCellValue('NO'),
+      TextCellValue('Pago cuota marzo'),
+    ]);
+    
+    _autoFitColumns(historySheet, historyHeaders.length);
+
+    return await _guardarArchivo(excel, 'Plantilla_Wilson_Historial');
+  }
+
   // =========================================================================
   // GENERACIÓN DE PLANTILLAS
   // =========================================================================

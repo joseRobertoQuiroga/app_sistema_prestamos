@@ -77,6 +77,7 @@ class _InstructivosTab extends StatelessWidget {
             'Ingrese el monto del préstamo',
             'Configure la tasa de interés (%) y el tipo (Simple o Compuesto)',
             'Seleccione el plazo en meses',
+            'Para préstamos "Wilson", la tasa ingresada es MENSUAL y el interés se calcula directo sobre el capital.',
             'El sistema calculará automáticamente la cuota mensual',
             'Revise la tabla de amortización antes de confirmar',
             'Presione "Crear Préstamo" para finalizar',
@@ -94,6 +95,7 @@ class _InstructivosTab extends StatelessWidget {
             'Presione el botón "Registrar Pago"',
             'Ingrese el monto del pago',
             'Elija el método de pago (Efectivo, Transferencia, etc.)',
+            'Active "Abono a Capital" si desea reducir directamente el saldo prestado (solo para Interés Simple/Wilson).',
             'El sistema distribuirá automáticamente el pago entre capital, intereses y mora (si aplica)',
             'Confirme el pago',
             'Puede ver el historial de pagos en la pestaña "Pagos" del préstamo',
@@ -376,6 +378,21 @@ class _FAQTab extends StatelessWidget {
               'Mientras tanto, puede intentar cerrar y reabrir la aplicación.',
           icono: Icons.bug_report,
           color: Colors.grey,
+        ),
+        _buildFAQItem(
+          pregunta: '¿Qué es un préstamo tipo "Wilson"?',
+          respuesta: 'Es un tipo de préstamo donde el interés se calcula mensualmente sobre el capital original prestado, sin amortización de capital en las cuotas regulares. '
+              'El capital se suele pagar al final o mediante abonos voluntarios. '
+              'La tasa que se ingresa es la tasa MENSUAL, no anual.',
+          icono: Icons.trending_up,
+          color: Colors.deepPurple,
+        ),
+        _buildFAQItem(
+          pregunta: '¿Por qué no puedo editar el monto de un préstamo?',
+          respuesta: 'Si el préstamo ya tiene pagos registrados, no se puede modificar el monto original, la tasa ni el plazo, ya que esto afectaría a los cálculos de los pagos ya realizados. '
+              'Solo podrá editar las observaciones. Si cometió un error en el monto, deberá eliminar los pagos primero o cancelar el préstamo y crear uno nuevo.',
+          icono: Icons.lock_outline,
+          color: Colors.redAccent,
         ),
       ],
     );

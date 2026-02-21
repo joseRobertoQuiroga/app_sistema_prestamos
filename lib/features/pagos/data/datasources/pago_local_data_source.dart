@@ -23,14 +23,29 @@ class PagoLocalDataSource {
     String? metodoPago,
     String? referencia,
     String? observaciones,
+    bool esAbonoCapital = false, // Nuevo parámetro
   }) async {
     return await database.transaction(() async {
-      // 0. Obtener clienteId del préstamo (requerido por Drift)
+      // 0. Obtener préstamo
       final prestamo = await (database.select(database.prestamos)
             ..where((tbl) => tbl.id.equals(prestamoId)))
           .getSingle();
 
       final clienteId = prestamo.clienteId;
+
+      // Detectar si es Wilson y usar flujo alternativo
+      if (prestamo.tipoInteres.toUpperCase() == 'WILSON') {
+        return await _registrarPagoWilson(
+          prestamo: prestamo,
+          monto: monto,
+          fechaPago: fechaPago,
+          cajaId: cajaId,
+          metodoPago: metodoPago,
+          referencia: referencia,
+          observaciones: observaciones,
+          esAbonoCapital: esAbonoCapital, // Pasar flag
+        );
+      }
 
       // 1. Generar código de pago
       final codigo = await _generarCodigoPago();
@@ -47,13 +62,14 @@ class PagoLocalDataSource {
         cuotas: cuotasPendientes,
         montoDisponible: monto,
         fechaPago: fechaPago,
+        esAbonoCapital: esAbonoCapital,
       );
 
       // 4. Crear el registro de pago
       final pagoId = await database.into(database.pagos).insert(
             db.PagosCompanion.insert(
               prestamoId: prestamoId,
-              clienteId: clienteId, // ✅ Campo requerido
+              clienteId: clienteId,
               codigo: codigo,
               montoPago: monto,
               montoMora: Value(resultado.totalMora),
@@ -73,7 +89,6 @@ class PagoLocalDataSource {
               db.DetallePagosCompanion.insert(
                 pagoId: pagoId,
                 cuotaId: detalle.cuotaId,
-                // ✅ Drift solo guarda montoAplicado y montoMora
                 montoAplicado: detalle.montoTotal,
                 montoMora: Value(detalle.montoMora),
                 fechaRegistro: Value(DateTime.now()),
@@ -99,12 +114,192 @@ class PagoLocalDataSource {
     });
   }
 
+  // =========================================================================
+  // PAGO WILSON — Flujo independiente sin cuotas pre-generadas
+  // =========================================================================
+
+  /// Registra un pago para préstamo Wilson.
+  /// Interés = saldoPendiente × (tasaInteres / 100) mensual directo
+  /// Mora = ceil(interés × diasRetraso / 30)
+  /// Cascada: Mora → Interés → Capital
+  Future<ResultadoAplicacionPago> _registrarPagoWilson({
+    required db.Prestamo prestamo,
+    required double monto,
+    required DateTime fechaPago,
+    int? cajaId,
+    String? metodoPago,
+    String? referencia,
+    String? observaciones,
+    bool esAbonoCapital = false,
+  }) async {
+    final codigo = await _generarCodigoPago();
+    final saldoActual = prestamo.saldoPendiente;
+    final montoOriginal = prestamo.montoOriginal; // ✅ Usar montoOriginal como base
+    final tasaMensual = prestamo.tasaInteres / 100;
+
+    // 1. Calcular el interés mensual base (siempre sobre el capital original para Wilson)
+    final interesMensualBase = montoOriginal * tasaMensual;
+
+    // 3. Calcular deuda histórica vs pagos históricos (Robustez contra pagos múltiples)
+    final todosLosPagos = await (database.select(database.pagos)
+          ..where((tbl) => tbl.prestamoId.equals(prestamo.id)))
+        .get();
+
+    double interesTotalPagado = 0;
+    double moraYaPagadaEnMes = 0; 
+    
+    for (final p in todosLosPagos) {
+      interesTotalPagado += p.montoInteres;
+      // Para la mora, revisamos si ya se pagó algo en el mismo mes/periodo para no duplicar
+      if (p.fechaPago.year == fechaPago.year && p.fechaPago.month == fechaPago.month) {
+        moraYaPagadaEnMes += p.montoMora ?? 0;
+      }
+    }
+
+    // 4. Calcular cuántos meses de interés se deben (vencidos)
+    int mesesVencidos = (fechaPago.year - prestamo.fechaInicio.year) * 12 + (fechaPago.month - prestamo.fechaInicio.month);
+    if (fechaPago.day < prestamo.fechaInicio.day) mesesVencidos--;
+    if (mesesVencidos < 0) mesesVencidos = 0;
+
+    // Solo se deudará interés si lo que toca pagar por meses vencidos es mayor a lo ya pagado
+    double interesADeudar = (mesesVencidos * interesMensualBase) - interesTotalPagado;
+    if (interesADeudar < 0) interesADeudar = 0;
+
+    // 5. Calcular mora (solo si hay retraso y no se ha cubierto en este mes)
+    double moraTotalCalculada = 0;
+    // El vencimiento contra el que comparamos el retraso es el "día" del mes actual
+    final vencimientoActual = DateTime(fechaPago.year, fechaPago.month, prestamo.fechaInicio.day);
+    
+    if (fechaPago.isAfter(vencimientoActual)) {
+      moraTotalCalculada = _calcularMoraWilson(
+        interes: interesMensualBase,
+        fechaVencimiento: vencimientoActual,
+        fechaPago: fechaPago,
+      );
+    }
+    
+    double moraADeudar = (moraTotalCalculada - moraYaPagadaEnMes);
+    if (moraADeudar < 0) moraADeudar = 0;
+
+    // Si es abono a capital explícito, ignoramos mora e interés
+    if (esAbonoCapital) {
+      moraADeudar = 0;
+      interesADeudar = 0;
+    }
+
+    // 6. Aplicar cascada: Mora → Interés → Capital
+    double montoRestante = monto;
+    double montoMora = 0;
+    double montoInteres = 0;
+    double montoCapital = 0;
+
+    // 5a. Cubrir mora
+    if (moraADeudar > 0 && montoRestante > 0) {
+      montoMora = montoRestante >= moraADeudar ? moraADeudar : montoRestante;
+      montoRestante -= montoMora;
+    }
+
+    // 5b. Cubrir interés
+    if (interesADeudar > 0 && montoRestante > 0) {
+      montoInteres = montoRestante >= interesADeudar ? interesADeudar : montoRestante;
+      montoRestante -= montoInteres;
+    }
+
+    // 5c. Cubrir capital (limitado al saldo pendiente total que incluye intereses proyectados)
+    // Pero el capital real que reduce la deuda es el monto de capital amortizado
+    if (saldoActual > 0 && montoRestante > 0) {
+      montoCapital = montoRestante >= saldoActual ? saldoActual : montoRestante;
+      montoRestante -= montoCapital;
+    }
+
+    final montoAplicado = monto - montoRestante;
+
+    // 6. Nuevo saldo pendiente
+    // ✅ CORREGIDO: El saldo pendiente es sobre el MONTO TOTAL (Capital + Interés)
+    // por lo tanto cualquier monto aplicado (mora, interés o capital) reduce la deuda total.
+    double nuevoSaldo = saldoActual - montoAplicado;
+    if (nuevoSaldo < 0.01) nuevoSaldo = 0;
+
+    // 7. Crear el registro de pago
+    final pagoId = await database.into(database.pagos).insert(
+      db.PagosCompanion.insert(
+        prestamoId: prestamo.id,
+        clienteId: prestamo.clienteId,
+        codigo: codigo,
+        montoPago: montoAplicado,
+        montoMora: Value(montoMora),
+        montoInteres: montoInteres,
+        montoCapital: montoCapital,
+        fechaPago: fechaPago,
+        cajaId: cajaId ?? 1,
+        metodoPago: metodoPago ?? 'EFECTIVO',
+        observaciones: Value(observaciones),
+        fechaRegistro: Value(DateTime.now()),
+      ),
+    );
+
+    // 8. Actualizar préstamo
+    final nuevoEstado = nuevoSaldo <= 0 ? 'PAGADO' : 'ACTIVO';
+    await (database.update(database.prestamos)
+          ..where((tbl) => tbl.id.equals(prestamo.id)))
+        .write(db.PrestamosCompanion(
+          saldoPendiente: Value(nuevoSaldo),
+          estado: Value(nuevoEstado),
+          fechaActualizacion: Value(DateTime.now()),
+        ));
+
+    // 9. Registrar movimiento en caja
+    if (cajaId != null) {
+      await _registrarMovimientoEnCaja(
+        cajaId: cajaId,
+        monto: montoAplicado,
+        descripcion: 'Pago Wilson préstamo ${prestamo.codigo}',
+        fechaPago: fechaPago,
+        pagoId: pagoId,
+      );
+    }
+
+    return ResultadoAplicacionPago(
+      montoOriginal: monto,
+      montoAplicado: montoAplicado,
+      montoRestante: montoRestante,
+      totalMora: montoMora,
+      totalInteres: montoInteres,
+      totalCapital: montoCapital,
+      detalles: [],
+      cuotasPagadas: [],
+      mensaje: 'Pago Wilson aplicado. Mora: Bs. $montoMora, Interés: Bs. $montoInteres, Capital: Bs. $montoCapital.',
+    );
+  }
+
+  /// Calcula mora Wilson: ceil(interés × díasRetraso / 30)
+  /// Siempre redondeada al entero superior
+  double _calcularMoraWilson({
+    required double interes,
+    required DateTime fechaVencimiento,
+    required DateTime fechaPago,
+  }) {
+    if (fechaPago.isBefore(fechaVencimiento) ||
+        fechaPago.isAtSameMomentAs(fechaVencimiento)) {
+      return 0;
+    }
+
+    final diasRetraso = fechaPago.difference(fechaVencimiento).inDays;
+    if (diasRetraso <= 0) return 0;
+
+    // Mora = ceil(interés * díasRetraso / 30)
+    final moraCalculada = interes * diasRetraso / 30;
+    return moraCalculada.ceil().toDouble();
+  }
+
   /// Aplica el pago en cascada sobre las cuotas
   /// Usa db.Cuota en lugar de CuotaData
+  /// Si [esAbonoCapital] es true, se omiten mora e interés y todo va a capital
   Future<ResultadoAplicacionPago> _aplicarPagoEnCascada({
     required List<db.Cuota> cuotas,
     required double montoDisponible,
     required DateTime fechaPago,
+    bool esAbonoCapital = false,
   }) async {
     double montoRestante = montoDisponible;
     double totalMora = 0;
@@ -116,49 +311,56 @@ class PagoLocalDataSource {
     for (final cuota in cuotas) {
       if (montoRestante <= 0) break;
 
-      // Calcular mora acumulada
-      final mora = _calcularMora(cuota, fechaPago);
-      final interesesPendiente = cuota.interes - cuota.montoPagado;
       final capitalPendiente = cuota.capital;
 
       double montoMora = 0;
       double montoInteres = 0;
       double montoCapital = 0;
 
-      // Cascada: Mora → Interés → Capital
-      
-      // 1. Cubrir mora
-      if (mora > 0 && montoRestante > 0) {
-        montoMora = montoRestante >= mora ? mora : montoRestante;
-        montoRestante -= montoMora;
-        totalMora += montoMora;
-      }
+      if (esAbonoCapital) {
+        // Abono directo a capital: se omiten mora e interés, todo va a capital
+        if (capitalPendiente > 0 && montoRestante > 0) {
+          montoCapital = montoRestante >= capitalPendiente
+              ? capitalPendiente
+              : montoRestante;
+          montoRestante -= montoCapital;
+          totalCapital += montoCapital;
+        }
+      } else {
+        // Cascada normal: Mora → Interés → Capital
+        final mora = _calcularMora(cuota, fechaPago);
+        final interesesPendiente = cuota.interes - cuota.montoPagado;
 
-      // 2. Cubrir interés
-      if (interesesPendiente > 0 && montoRestante > 0) {
-        montoInteres = montoRestante >= interesesPendiente 
-            ? interesesPendiente 
-            : montoRestante;
-        montoRestante -= montoInteres;
-        totalInteres += montoInteres;
-      }
+        // 1. Cubrir mora
+        if (mora > 0 && montoRestante > 0) {
+          montoMora = montoRestante >= mora ? mora : montoRestante;
+          montoRestante -= montoMora;
+          totalMora += montoMora;
+        }
 
-      // 3. Cubrir capital
-      if (capitalPendiente > 0 && montoRestante > 0) {
-        montoCapital = montoRestante >= capitalPendiente 
-            ? capitalPendiente 
-            : montoRestante;
-        montoRestante -= montoCapital;
-        totalCapital += montoCapital;
+        // 2. Cubrir interés
+        if (interesesPendiente > 0 && montoRestante > 0) {
+          montoInteres = montoRestante >= interesesPendiente
+              ? interesesPendiente
+              : montoRestante;
+          montoRestante -= montoInteres;
+          totalInteres += montoInteres;
+        }
+
+        // 3. Cubrir capital
+        if (capitalPendiente > 0 && montoRestante > 0) {
+          montoCapital = montoRestante >= capitalPendiente
+              ? capitalPendiente
+              : montoRestante;
+          montoRestante -= montoCapital;
+          totalCapital += montoCapital;
+        }
       }
 
       // Actualizar la cuota
-      // ✅ CORREGIDO: Sumar Capital e Interés al monto pagado
       final nuevoMontoPagado = cuota.montoPagado + montoInteres + montoCapital;
-      
-      // ✅ CORREGIDO: Acumular la mora pagada
       final nuevaMoraPagada = cuota.montoMora + montoMora;
-      
+
       await (database.update(database.cuotas)
             ..where((tbl) => tbl.id.equals(cuota.id)))
           .write(
@@ -169,7 +371,7 @@ class PagoLocalDataSource {
           estado: Value(_determinarEstadoCuota(
             interesTotal: cuota.interes,
             capitalTotal: cuota.capital,
-            montoPagado: nuevoMontoPagado, // Ya incluye interés + capital
+            montoPagado: nuevoMontoPagado,
             fechaVencimiento: cuota.fechaVencimiento,
             fechaPago: fechaPago,
           )),
@@ -179,7 +381,7 @@ class PagoLocalDataSource {
       // Guardar detalle si hubo aplicación
       if (montoMora > 0 || montoInteres > 0 || montoCapital > 0) {
         detalles.add(DetallePago(
-          pagoId: 0, // Se asignará después
+          pagoId: 0,
           cuotaId: cuota.id,
           numeroCuota: cuota.numeroCuota,
           montoMora: montoMora,
@@ -189,7 +391,6 @@ class PagoLocalDataSource {
           fechaRegistro: DateTime.now(),
         ));
 
-        // Verificar si la cuota quedó pagada
         if (nuevoMontoPagado >= cuota.interes) {
           cuotasPagadas.add(cuota.id);
         }

@@ -1,0 +1,196 @@
+﻿flutter : Package 
+file_picker:linux 
+references 
+file_picker:linux as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+En línea: 1 Carácter: 
+1
++ flutter build 
+windows > 
+build_output_full.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (Package fi   
+ le_pi...implement    
+ation.:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+Ask the maintainers 
+of file_picker to 
+either avoid 
+referencing a default 
+implementation via 
+`platforms: linux: 
+default_package: 
+file_picker` or add 
+an inline 
+implementation to 
+file_picker via 
+`platforms: linux:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:macos 
+references 
+file_picker:macos as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers 
+of file_picker to 
+either avoid 
+referencing a default 
+implementation via 
+`platforms: macos: 
+default_package: 
+file_picker` or add 
+an inline 
+implementation to 
+file_picker via 
+`platforms: macos:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:windows 
+references 
+file_picker:windows 
+as the default 
+plugin, but it does 
+not provide an inline 
+implementation.
+Ask the maintainers 
+of file_picker to 
+either avoid 
+referencing a default 
+implementation via 
+`platforms: windows: 
+default_package: 
+file_picker` or add 
+an inline 
+implementation to 
+file_picker via 
+`platforms: windows:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:linux 
+references 
+file_picker:linux as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers 
+of file_picker to 
+either avoid 
+referencing a default 
+implementation via 
+`platforms: linux: 
+default_package: 
+file_picker` or add 
+an inline 
+implementation to 
+file_picker via 
+`platforms: linux:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:macos 
+references 
+file_picker:macos as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers 
+of file_picker to 
+either avoid 
+referencing a default 
+implementation via 
+`platforms: macos: 
+default_package: 
+file_picker` or add 
+an inline 
+implementation to 
+file_picker via 
+`platforms: macos:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:windows 
+references 
+file_picker:windows 
+as the default 
+plugin, but it does 
+not provide an inline 
+implementation.
+Ask the maintainers 
+of file_picker to 
+either avoid 
+referencing a default 
+implementation via 
+`platforms: windows: 
+default_package: 
+file_picker` or add 
+an inline 
+implementation to 
+file_picker via 
+`platforms: windows:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Building Windows application...                                 
+CMake Error: The 
+current 
+CMakeCache.txt 
+directory C:/Users/Rob
+erto/Desktop/PROYECTOS
+/sistema prestamos/pre
+stamos_app/build/windo
+ws/x64/CMakeCache.txt 
+is different than the 
+directory c:/Users/Rob
+erto/Desktop/sistema p
+restamos/prestamos_app
+/build/windows/x64 
+where CMakeCache.txt 
+was created. This may 
+result in binaries 
+being created in the 
+wrong place. If you 
+are not sure, reedit 
+the CMakeCache.txt
+CMake Error: The 
+source "C:/Users/Rober
+to/Desktop/PROYECTOS/s
+istema prestamos/prest
+amos_app/windows/CMake
+Lists.txt" does not 
+match the source "C:/U
+sers/Roberto/Desktop/s
+istema prestamos/prest
+amos_app/windows/CMake
+Lists.txt" used to 
+generate cache.  
+Re-run cmake with a 
+different source 
+directory.
+Building Windows application...                                    112ms
+Unable to generate 
+build files

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:excel/excel.dart';
+import 'package:intl/intl.dart';
 import '../../../clientes/domain/entities/cliente.dart';
 import '../../domain/entities/reportes_entities.dart';
 
@@ -351,11 +352,11 @@ class ImportacionService {
           }
 
           // Validar tipo de interés
-          if (tipoInteres != 'SIMPLE' && tipoInteres != 'COMPUESTO') {
+          if (tipoInteres != 'SIMPLE' && tipoInteres != 'COMPUESTO' && tipoInteres != 'WILSON') {
             erroresFila.add(ErrorImportacion(
               fila: numeroFila,
               campo: 'Tipo Interés',
-              mensaje: 'El tipo debe ser SIMPLE o COMPUESTO',
+              mensaje: 'El tipo debe ser SIMPLE, COMPUESTO o WILSON',
               valorProblematico: tipoInteres,
             ));
           }
@@ -437,6 +438,112 @@ class ImportacionService {
     );
   }
 
+  /// Importa un préstamo Wilson con su historial de pagos desde un Excel de dos hojas
+  Future<ResultadoImportacionWilson> importarWilsonCompleto(
+    String rutaArchivo,
+    Future<int?> Function(String ci) obtenerClientePorCi,
+    Future<int?> Function(String nombreCaja) obtenerCajaPorNombre,
+  ) async {
+    final inicio = DateTime.now();
+    final errores = <ErrorImportacion>[];
+
+    try {
+      final bytes = File(rutaArchivo).readAsBytesSync();
+      final excel = Excel.decodeBytes(bytes);
+
+      if (!excel.tables.containsKey('DATOS PRESTAMO')) {
+        throw Exception('No se encontró la hoja "DATOS PRESTAMO"');
+      }
+
+      final loanSheet = excel.tables['DATOS PRESTAMO']!;
+      final historySheet = excel.tables['HISTORIAL PAGOS'];
+
+      if (loanSheet.rows.length < 2) {
+        throw Exception('La hoja de datos del préstamo está vacía');
+      }
+
+      // 1. Procesar datos del préstamo (asumimos una sola fila de datos por archivo por ahora, o procesamos el primero)
+      final row = loanSheet.rows[1];
+      final ci = _getCellValue(row, 0);
+      final caja = _getCellValue(row, 1);
+      final monto = double.tryParse(_getCellValue(row, 2));
+      final tasa = double.tryParse(_getCellValue(row, 3));
+      final plazo = int.tryParse(_getCellValue(row, 4));
+      final fecha = _parsearFecha(_getCellValue(row, 5));
+      final observaciones = _getCellValue(row, 6);
+
+      // Validaciones básicas
+      if (ci.isEmpty || caja.isEmpty || monto == null || tasa == null || plazo == null || fecha == null) {
+        throw Exception('Datos del préstamo incompletos o inválidos en la fila 2');
+      }
+
+      final clienteId = await obtenerClientePorCi(ci);
+      if (clienteId == null) throw Exception('El cliente con CI $ci no existe');
+
+      final cajaId = await obtenerCajaPorNombre(caja);
+      if (cajaId == null) throw Exception('La caja "$caja" no existe');
+
+      final prestamoDesc = PrestamoImportacion(
+        clienteId: clienteId,
+        cajaId: cajaId,
+        montoOriginal: monto,
+        tasaInteres: tasa,
+        tipoInteres: 'WILSON',
+        plazoMeses: plazo,
+        fechaInicio: fecha,
+        observaciones: observaciones,
+      );
+
+      // 2. Procesar historial de pagos
+      final pagos = <PagoImportacion>[];
+      if (historySheet != null && historySheet.rows.length > 1) {
+        for (var i = 1; i < historySheet.rows.length; i++) {
+          final pRow = historySheet.rows[i];
+          final pMonto = double.tryParse(_getCellValue(pRow, 1));
+          final pFecha = _parsearFecha(_getCellValue(pRow, 2));
+          final pMetodo = _getCellValue(pRow, 3);
+          final pEsAbono = _getCellValue(pRow, 4).toUpperCase() == 'SÍ';
+          final pObs = _getCellValue(pRow, 5);
+
+          if (pMonto != null && pFecha != null) {
+            pagos.add(PagoImportacion(
+              monto: pMonto,
+              fecha: pFecha,
+              metodo: pMetodo.isEmpty ? 'EFECTIVO' : pMetodo,
+              esAbonoCapital: pEsAbono,
+              observaciones: pObs,
+            ));
+          } else if (_getCellValue(pRow, 1).isNotEmpty) {
+            errores.add(ErrorImportacion(
+              fila: i + 1,
+              campo: 'Historial Pagos',
+              mensaje: 'Monto o fecha inválidos',
+              valorProblematico: 'Monto: ${_getCellValue(pRow, 1)}, Fecha: ${_getCellValue(pRow, 2)}',
+            ));
+          }
+        }
+      }
+
+      // Ordenar pagos por fecha para asegurar aplicación correcta
+      pagos.sort((a, b) => a.fecha.compareTo(b.fecha));
+
+      return ResultadoImportacionWilson(
+        prestamo: prestamoDesc,
+        pagos: pagos,
+        errores: errores,
+        fechaProceso: inicio,
+      );
+
+    } catch (e) {
+      return ResultadoImportacionWilson(
+        prestamo: null,
+        pagos: [],
+        errores: [ErrorImportacion(fila: 0, campo: 'general', mensaje: e.toString())],
+        fechaProceso: inicio,
+      );
+    }
+  }
+
   // =========================================================================
   // MÉTODOS AUXILIARES
   // =========================================================================
@@ -501,6 +608,38 @@ class PrestamoImportacion {
     required this.tipoInteres,
     required this.plazoMeses,
     required this.fechaInicio,
+    this.observaciones,
+  });
+}
+
+/// Resultado de parsing para Wilson Completo
+class ResultadoImportacionWilson {
+  final PrestamoImportacion? prestamo;
+  final List<PagoImportacion> pagos;
+  final List<ErrorImportacion> errores;
+  final DateTime fechaProceso;
+
+  ResultadoImportacionWilson({
+    this.prestamo,
+    required this.pagos,
+    required this.errores,
+    required this.fechaProceso,
+  });
+}
+
+/// Datos de pago individual para importación
+class PagoImportacion {
+  final double monto;
+  final DateTime fecha;
+  final String metodo;
+  final bool esAbonoCapital;
+  final String? observaciones;
+
+  PagoImportacion({
+    required this.monto,
+    required this.fecha,
+    required this.metodo,
+    required this.esAbonoCapital,
     this.observaciones,
   });
 }

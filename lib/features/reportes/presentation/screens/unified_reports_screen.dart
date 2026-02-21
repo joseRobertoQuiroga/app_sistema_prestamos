@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import '../../../../presentation/widgets/app_drawer.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/reportes_provider.dart';
 import '../../domain/entities/reportes_entities.dart';
 
@@ -13,7 +12,6 @@ import '../../../prestamos/domain/entities/prestamo.dart';
 import '../../../pagos/presentation/providers/pago_provider.dart';
 import '../../../caja/presentation/providers/caja_provider.dart';
 import '../../../caja/domain/entities/movimiento.dart';
-import '../../../caja/domain/entities/caja.dart';
 import '../../../informes/presentation/widgets/selector_cliente_widget.dart';
 import '../../../informes/presentation/widgets/selector_prestamo_widget.dart';
 
@@ -27,7 +25,50 @@ class UnifiedReportsScreen extends ConsumerStatefulWidget {
 class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
   TipoReporte _selectedReport = TipoReporte.carteraCompleta;
   int? _selectedId; // Para reportes específicos (Cliente, Préstamo, Caja)
+  String? _selectedEntityName; // Nombre de la entidad seleccionada para UI
   String _searchQuery = '';
+
+  // =========================================================================
+  // HELPERS DE FILTRO POR PERÍODO
+  // =========================================================================
+
+  DateTimeRange _getRangoPeriodo(String periodo) {
+    final ahora = DateTime.now();
+    switch (periodo) {
+      case 'ultimoTrimestre':
+        return DateTimeRange(
+          start: DateTime(ahora.year, ahora.month - 3, ahora.day),
+          end: ahora,
+        );
+      case 'ultimoAnio':
+        return DateTimeRange(
+          start: DateTime(ahora.year - 1, ahora.month, ahora.day),
+          end: ahora,
+        );
+      case 'todoElTiempo':
+        return DateTimeRange(start: DateTime(2000), end: ahora);
+      case 'ultimoMes':
+      default:
+        return DateTimeRange(
+          start: DateTime(ahora.year, ahora.month - 1, ahora.day),
+          end: ahora,
+        );
+    }
+  }
+
+  List<Prestamo> _filterByPeriodoPrestamos(List<Prestamo> list, String periodo) {
+    final rango = _getRangoPeriodo(periodo);
+    return list.where((p) =>
+      !p.fechaRegistro.isBefore(rango.start) && !p.fechaRegistro.isAfter(rango.end)
+    ).toList();
+  }
+
+  List<Movimiento> _filterByPeriodoMovimientos(List<Movimiento> list, String periodo) {
+    final rango = _getRangoPeriodo(periodo);
+    return list.where((m) =>
+      !m.fecha.isBefore(rango.start) && !m.fecha.isAfter(rango.end)
+    ).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +123,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
   Widget _buildFilterBar(BuildContext context) {
     final periodo = ref.watch(periodoSeleccionadoProvider);
     final formato = ref.watch(formatoSeleccionadoProvider);
+    final generando = ref.watch(generandoReporteProvider);
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -123,15 +165,28 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
           const SizedBox(width: 16),
           _buildSelectionButton(),
           const Spacer(),
-          ElevatedButton.icon(
-            onPressed: () => _generarReporte(context, ref, _selectedReport),
-            icon: const Icon(Icons.file_download),
-            label: const Text('Exportar Datos'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            ),
-          ),
+          generando
+              ? const SizedBox(
+                  width: 140,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 8),
+                      Text('Generando...', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    ],
+                  ),
+                )
+              : ElevatedButton.icon(
+                  onPressed: () => _generarReporte(context, ref, _selectedReport),
+                  icon: Icon(formato == 'pdf' ? Icons.picture_as_pdf : Icons.table_chart, size: 18),
+                  label: Text('Exportar ${formato.toUpperCase()}'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: formato == 'pdf' ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  ),
+                ),
         ],
       ),
     );
@@ -143,15 +198,17 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     bool visible = false;
 
     if (_selectedReport == TipoReporte.estadoCuentaCliente) {
-      label = _selectedId == null ? 'Seleccionar Cliente' : 'Cambiar Cliente';
+      label = _selectedEntityName ?? 'Seleccionar Cliente';
       icon = Icons.person_search;
       visible = true;
     } else if (_selectedReport == TipoReporte.resumenPrestamo) {
-      label = _selectedId == null ? 'Seleccionar Préstamo' : 'Cambiar Préstamo';
+      label = _selectedEntityName ?? 'Seleccionar Préstamo';
       icon = Icons.description;
       visible = true;
-    } else if (_selectedReport == TipoReporte.resumenEgresos || _selectedReport == TipoReporte.resumenIngresos) {
-      label = _selectedId == null ? 'Seleccionar Caja (Opcional)' : 'Cambiar Caja';
+    } else if (_selectedReport == TipoReporte.resumenEgresos ||
+               _selectedReport == TipoReporte.resumenIngresos ||
+               _selectedReport == TipoReporte.movimientosCaja) {
+      label = _selectedEntityName ?? 'Caja (Opcional)';
       icon = Icons.account_balance;
       visible = true;
     }
@@ -173,6 +230,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
               _mostrarSelectorCaja(context);
             }
           },
+          borderRadius: BorderRadius.circular(8),
           child: Container(
             width: 200,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -187,10 +245,20 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _selectedId == null ? label : 'ID: #$_selectedId',
-                    style: const TextStyle(fontSize: 14, color: Colors.white, overflow: TextOverflow.ellipsis),
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _selectedId != null ? Colors.white : Colors.grey,
+                      overflow: TextOverflow.ellipsis,
+                      fontWeight: _selectedId != null ? FontWeight.w600 : FontWeight.normal,
+                    ),
                   ),
                 ),
+                if (_selectedId != null)
+                  GestureDetector(
+                    onTap: () => setState(() { _selectedId = null; _selectedEntityName = null; }),
+                    child: const Icon(Icons.close, size: 14, color: Colors.grey),
+                  ),
               ],
             ),
           ),
@@ -259,14 +327,21 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
                       'Vista Previa: ${_selectedReport.nombre}',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     ),
-                    if (_selectedId != null)
-                      Text('Filtro específico ID: #$_selectedId', style: const TextStyle(color: Colors.blue, fontSize: 12)),
+                    if (_selectedEntityName != null)
+                      Text(
+                        'Filtro: $_selectedEntityName',
+                        style: const TextStyle(color: Colors.blue, fontSize: 12),
+                      ),
                   ],
                 ),
                 const Spacer(),
                 _buildSearchField(),
-                IconButton(icon: const Icon(Icons.filter_list), onPressed: () {}),
-                IconButton(icon: const Icon(Icons.view_headline), onPressed: () {}),
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  color: Colors.grey,
+                  tooltip: 'Limpiar búsqueda',
+                  onPressed: _searchQuery.isNotEmpty ? () => setState(() => _searchQuery = '') : null,
+                ),
               ],
             ),
           ),
@@ -305,10 +380,13 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
   Widget _buildCarteraTable() {
     final prestamosAsync = ref.watch(prestamosListProvider);
+    final periodo = ref.watch(periodoSeleccionadoProvider);
+
     return prestamosAsync.when(
       data: (prestamos) {
-        final filtered = _filterAndSearchPrestamos(prestamos);
-        
+        var filtered = _filterByPeriodoPrestamos(prestamos, periodo);
+        filtered = _filterAndSearchPrestamos(filtered);
+
         List<String> columns;
         if (_selectedReport == TipoReporte.moraDetallada) {
           columns = const ['CLIENTE', 'PRÉSTAMO', 'VENCIMIENTO', 'SALDO PEND.', 'ESTADO'];
@@ -320,6 +398,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
         return _buildScrollableTable(
           columns: columns,
+          totalRows: filtered.length,
           rows: filtered.map((p) {
             List<DataCell> cells;
             if (_selectedReport == TipoReporte.moraDetallada) {
@@ -358,18 +437,50 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
   }
 
   Widget _buildHistorialClienteTable() {
-    if (_selectedId == null) return const Center(child: Text('Por favor seleccione un cliente para ver su historial.'));
-    
+    if (_selectedId == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.person_search, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            const Text('Seleccione un cliente para ver su historial.', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _mostrarSelectorCliente(context),
+              icon: const Icon(Icons.person_add, size: 18),
+              label: const Text('Seleccionar Cliente'),
+            ),
+          ],
+        ),
+      );
+    }
+
     final pagosAsync = ref.watch(allPagosListProvider);
     final prestamosAsync = ref.watch(prestamosListProvider);
-    
+    final periodo = ref.watch(periodoSeleccionadoProvider);
+
     return pagosAsync.when(
       data: (pagos) {
         return prestamosAsync.when(
           data: (prestamos) {
-            final pagosCliente = pagos.where((p) => prestamos.any((pr) => pr.id == p.prestamoId && pr.clienteId == _selectedId)).toList();
+            var pagosCliente = pagos.where((p) => prestamos.any((pr) => pr.id == p.prestamoId && pr.clienteId == _selectedId)).toList();
+            final rango = _getRangoPeriodo(periodo);
+            pagosCliente = pagosCliente.where((p) =>
+              !p.fechaPago.isBefore(rango.start) && !p.fechaPago.isAfter(rango.end)
+            ).toList();
+
+            if (_searchQuery.isNotEmpty) {
+              pagosCliente = pagosCliente.where((p) {
+                final prestamo = prestamos.firstWhere((pr) => pr.id == p.prestamoId, orElse: () => prestamos.first);
+                return prestamo.codigo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                    (p.metodoPago ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+              }).toList();
+            }
+
             return _buildScrollableTable(
               columns: const ['FECHA', 'PRÉSTAMO', 'MONTO TOTAL', 'CAPITAL', 'INTERÉS', 'MÉTODO'],
+              totalRows: pagosCliente.length,
               rows: pagosCliente.map((p) {
                 final prestamo = prestamos.firstWhere((pr) => pr.id == p.prestamoId);
                 return DataRow(cells: [
@@ -393,21 +504,47 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
   }
 
   Widget _buildResumenPrestamoTable() {
-    if (_selectedId == null) return const Center(child: Text('Por favor seleccione un préstamo para ver su resumen.'));
-    
+    if (_selectedId == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.description_outlined, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            const Text('Seleccione un préstamo para ver su resumen.', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _mostrarSelectorPrestamo(context),
+              icon: const Icon(Icons.search, size: 18),
+              label: const Text('Seleccionar Préstamo'),
+            ),
+          ],
+        ),
+      );
+    }
+
     final prestamoDetailAsync = ref.watch(prestamoDetailProvider(_selectedId!));
     final pagosAsync = ref.watch(allPagosListProvider);
-    
+
     return prestamoDetailAsync.when(
       data: (prestamo) => pagosAsync.when(
         data: (pagos) {
-          final pagosPrestamo = pagos.where((p) => p.prestamoId == _selectedId).toList();
+          var pagosPrestamo = pagos.where((p) => p.prestamoId == _selectedId).toList();
+
+          if (_searchQuery.isNotEmpty) {
+            pagosPrestamo = pagosPrestamo.where((p) =>
+              p.codigo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              (p.metodoPago ?? '').toLowerCase().contains(_searchQuery.toLowerCase())
+            ).toList();
+          }
+
           return Column(
             children: [
               _buildPrestamoHeader(prestamo),
               Expanded(
                 child: _buildScrollableTable(
                   columns: const ['FECHA', 'CÓDIGO', 'MONTO', 'CAPITAL', 'INTERÉS', 'MORA', 'MÉTODO'],
+                  totalRows: pagosPrestamo.length,
                   rows: pagosPrestamo.map((p) => DataRow(cells: [
                     DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaPago))),
                     DataCell(Text(p.codigo)),
@@ -463,11 +600,26 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
   Widget _buildProyeccionTable() {
     final prestamosAsync = ref.watch(prestamosListProvider);
+    final periodo = ref.watch(periodoSeleccionadoProvider);
+
     return prestamosAsync.when(
       data: (prestamos) {
-        final prestamosVivos = prestamos.where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora).toList();
+        var prestamosVivos = prestamos.where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora).toList();
+        final rango = _getRangoPeriodo(periodo);
+        prestamosVivos = prestamosVivos.where((p) =>
+          p.fechaVencimiento.isAfter(rango.start) && p.fechaVencimiento.isBefore(rango.end)
+        ).toList();
+
+        if (_searchQuery.isNotEmpty) {
+          prestamosVivos = prestamosVivos.where((p) =>
+            (p.nombreCliente ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            p.codigo.toLowerCase().contains(_searchQuery.toLowerCase())
+          ).toList();
+        }
+
         return _buildScrollableTable(
           columns: const ['CLIENTE', 'PRÉSTAMO', 'CUOTA MENSUAL', 'TASA', 'VENCIMIENTO', 'ACCIONES'],
+          totalRows: prestamosVivos.length,
           rows: prestamosVivos.map((p) => DataRow(cells: [
             DataCell(Text(p.nombreCliente ?? 'N/A')),
             DataCell(Text(p.codigo)),
@@ -478,6 +630,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
               setState(() {
                 _selectedReport = TipoReporte.resumenPrestamo;
                 _selectedId = p.id;
+                _selectedEntityName = p.codigo;
               });
             })),
           ])).toList(),
@@ -490,9 +643,12 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
   Widget _buildMovimientosTable() {
     final movimientosAsync = ref.watch(movimientosGeneralesProvider);
+    final periodo = ref.watch(periodoSeleccionadoProvider);
+
     return movimientosAsync.when(
       data: (movimientos) {
-        var filtered = movimientos;
+        var filtered = _filterByPeriodoMovimientos(movimientos, periodo);
+
         if (_selectedId != null) {
           filtered = filtered.where((m) => m.cajaId == _selectedId).toList();
         }
@@ -502,16 +658,53 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
           filtered = filtered.where((m) => m.esIngreso).toList();
         }
 
-        return _buildScrollableTable(
-          columns: const ['FECHA', 'TIPO', 'CATEGORÍA', 'MONTO', 'CAJA', 'CONCEPTO'],
-          rows: filtered.map((m) => DataRow(cells: [
-            DataCell(Text(DateFormat('dd/MM/yyyy').format(m.fecha))),
-            DataCell(Text(m.tipo, style: TextStyle(color: m.esIngreso ? Colors.green : Colors.red))),
-            DataCell(Text(m.categoria)),
-            DataCell(Text('Bs. ${m.monto.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
-            DataCell(Text('Caja #${m.cajaId}')),
-            DataCell(Text(m.descripcion)),
-          ])).toList(),
+        if (_searchQuery.isNotEmpty) {
+          filtered = filtered.where((m) =>
+            m.descripcion.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            m.categoria.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            m.tipo.toLowerCase().contains(_searchQuery.toLowerCase())
+          ).toList();
+        }
+
+        final totalMonto = filtered.fold<double>(0, (sum, m) => sum + (m.esIngreso ? m.monto : -m.monto));
+
+        return Column(
+          children: [
+            // Mini resumen
+            if (filtered.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.black.withOpacity(0.15),
+                child: Row(
+                  children: [
+                    Text('${filtered.length} registro(s)', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Balance: Bs. ${totalMonto.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: totalMonto >= 0 ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: _buildScrollableTable(
+                columns: const ['FECHA', 'TIPO', 'CATEGORÍA', 'MONTO', 'CAJA', 'CONCEPTO'],
+                totalRows: filtered.length,
+                rows: filtered.map((m) => DataRow(cells: [
+                  DataCell(Text(DateFormat('dd/MM/yyyy').format(m.fecha))),
+                  DataCell(Text(m.tipo, style: TextStyle(color: m.esIngreso ? Colors.green : Colors.red, fontWeight: FontWeight.bold))),
+                  DataCell(Text(m.categoria)),
+                  DataCell(Text('Bs. ${m.monto.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text('Caja #${m.cajaId}')),
+                  DataCell(Text(m.descripcion)),
+                ])).toList(),
+              ),
+            ),
+          ],
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -519,18 +712,47 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     );
   }
 
-  Widget _buildScrollableTable({required List<String> columns, required List<DataRow> rows}) {
-    if (rows.isEmpty) return const Center(child: Text('No hay registros para mostrar.'));
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.black12),
-          columns: columns.map((c) => DataColumn(label: Text(c, style: const TextStyle(fontSize: 12, color: Colors.grey)))).toList(),
-          rows: rows,
+  Widget _buildScrollableTable({
+    required List<String> columns,
+    required List<DataRow> rows,
+    int? totalRows,
+  }) {
+    if (rows.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade700),
+            const SizedBox(height: 12),
+            const Text('No hay registros para el filtro seleccionado.', style: TextStyle(color: Colors.grey)),
+          ],
         ),
-      ),
+      );
+    }
+
+    return Column(
+      children: [
+        if (totalRows != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            color: Colors.black.withOpacity(0.1),
+            alignment: Alignment.centerLeft,
+            child: Text('Mostrando $totalRows resultado(s)', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          ),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(Colors.black12),
+                columns: columns.map((c) => DataColumn(label: Text(c, style: const TextStyle(fontSize: 12, color: Colors.grey)))).toList(),
+                rows: rows,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -540,10 +762,13 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
       filtered = filtered.where((p) => p.enMora).toList();
     } else if (_selectedReport == TipoReporte.prestamosCancelados) {
       filtered = filtered.where((p) => p.estado == EstadoPrestamo.pagado).toList();
+    } else {
+      // Cartera activa: solo activos y en mora
+      filtered = filtered.where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((p) => (p.nombreCliente ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) || 
+      filtered = filtered.where((p) => (p.nombreCliente ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
                                      (p.codigo).toLowerCase().contains(_searchQuery.toLowerCase())).toList();
     }
     return filtered;
@@ -551,13 +776,14 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
   Widget _buildSearchField() {
     return Container(
-      width: 200,
+      width: 220,
       height: 36,
       margin: const EdgeInsets.symmetric(horizontal: 8),
       child: TextField(
         onChanged: (val) => setState(() => _searchQuery = val),
+        controller: TextEditingController(text: _searchQuery)..selection = TextSelection.fromPosition(TextPosition(offset: _searchQuery.length)),
         decoration: InputDecoration(
-          hintText: 'Buscar...',
+          hintText: 'Buscar en resultados...',
           hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
           prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
           filled: true,
@@ -586,16 +812,29 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
   }
 
   Widget _buildFooter(BuildContext context) {
+    final periodo = ref.watch(periodoSeleccionadoProvider);
+    final periodoLabel = periodo == 'ultimoMes' ? 'Último mes'
+        : periodo == 'ultimoTrimestre' ? 'Último trimestre'
+        : periodo == 'ultimoAnio' ? 'Último año'
+        : 'Todo el tiempo';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Text('Vistas dinámicas habilitadas', style: TextStyle(color: Colors.grey, fontSize: 11)),
-          const SizedBox(width: 16),
-          IconButton(icon: const Icon(Icons.chevron_left, size: 20), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.chevron_right, size: 20), onPressed: () {}),
+          Icon(Icons.filter_alt, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Text('Período activo: $periodoLabel', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+          if (_searchQuery.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Icon(Icons.search, size: 14, color: Colors.blue.shade300),
+            const SizedBox(width: 4),
+            Text('Búsqueda: "$_searchQuery"', style: TextStyle(color: Colors.blue.shade300, fontSize: 11)),
+          ],
+          const Spacer(),
+          Text(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
+              style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ],
       ),
     );
@@ -634,17 +873,17 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
                 _buildSidebarCategory('CARTERA DE CRÉDITOS'),
-                _buildSidebarItem(TipoReporte.carteraCompleta, 'Cartera Activa', 'Listado completo de préstamos vigentes con saldos y estados.', Icons.account_balance_wallet, _selectedReport == TipoReporte.carteraCompleta),
-                _buildSidebarItem(TipoReporte.moraDetallada, 'Mora Detallada', 'Préstamos con cuotas vencidas y días de atraso.', Icons.warning_amber, _selectedReport == TipoReporte.moraDetallada),
-                _buildSidebarItem(TipoReporte.prestamosCancelados, 'Préstamos Cancelados', 'Historial de créditos finalizados exitosamente.', Icons.check_circle, _selectedReport == TipoReporte.prestamosCancelados),
-                _buildSidebarItem(TipoReporte.resumenPrestamo, 'Resumen de Préstamo', 'Información completa y directa de un préstamo.', Icons.description, _selectedReport == TipoReporte.resumenPrestamo),
-                
+                _buildSidebarItem(TipoReporte.carteraCompleta, 'Cartera Activa', 'Préstamos vigentes con saldos y estados.', Icons.account_balance_wallet, _selectedReport == TipoReporte.carteraCompleta),
+                _buildSidebarItem(TipoReporte.moraDetallada, 'Mora Detallada', 'Préstamos con cuotas vencidas y días atraso.', Icons.warning_amber, _selectedReport == TipoReporte.moraDetallada),
+                _buildSidebarItem(TipoReporte.prestamosCancelados, 'Préstamos Cancelados', 'Historial de créditos finalizados.', Icons.check_circle, _selectedReport == TipoReporte.prestamosCancelados),
+                _buildSidebarItem(TipoReporte.resumenPrestamo, 'Resumen de Préstamo', 'Información completa de un préstamo.', Icons.description, _selectedReport == TipoReporte.resumenPrestamo),
+
                 _buildSidebarCategory('CLIENTES Y COBROS'),
-                _buildSidebarItem(TipoReporte.estadoCuentaCliente, 'Historial de Cliente', 'Resumen general o detallado por cada cliente.', Icons.person, _selectedReport == TipoReporte.estadoCuentaCliente),
+                _buildSidebarItem(TipoReporte.estadoCuentaCliente, 'Historial de Cliente', 'Resumen detallado por cliente.', Icons.person, _selectedReport == TipoReporte.estadoCuentaCliente),
                 _buildSidebarItem(TipoReporte.proyeccionCobros, 'Proyección de Cobros', 'Próximos vencimientos de cuotas.', Icons.event_note, _selectedReport == TipoReporte.proyeccionCobros),
 
                 _buildSidebarCategory('FINANZAS Y CAJA'),
-                _buildSidebarItem(TipoReporte.movimientosCaja, 'Flujo de Caja', 'Ingresos y egresos detallados por sucursal.', Icons.trending_up, _selectedReport == TipoReporte.movimientosCaja),
+                _buildSidebarItem(TipoReporte.movimientosCaja, 'Flujo de Caja', 'Ingresos y egresos detallados.', Icons.trending_up, _selectedReport == TipoReporte.movimientosCaja),
                 _buildSidebarItem(TipoReporte.resumenEgresos, 'Resumen de Egresos', 'Detalle general o por caja de salidas.', Icons.file_upload, _selectedReport == TipoReporte.resumenEgresos),
                 _buildSidebarItem(TipoReporte.resumenIngresos, 'Resumen de Ingresos', 'Detalle general o por caja de entradas.', Icons.file_download, _selectedReport == TipoReporte.resumenIngresos),
               ],
@@ -680,6 +919,8 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
           setState(() {
             _selectedReport = tipo;
             _selectedId = null;
+            _selectedEntityName = null;
+            _searchQuery = '';
           });
         },
         leading: Container(
@@ -718,7 +959,15 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
       context: context,
       builder: (context) => SelectorClienteWidget(
         onClienteSeleccionado: (clienteId) {
-          setState(() => _selectedId = clienteId);
+          // Intentar obtener el nombre del cliente
+          final clientesState = ref.read(clientesProvider);
+          final cliente = clientesState.clientes.where((c) => c.id == clienteId).firstOrNull;
+          final nombre = cliente != null ? cliente.nombre : 'Cliente #$clienteId';
+          
+          setState(() {
+            _selectedId = clienteId;
+            _selectedEntityName = nombre;
+          });
           Navigator.pop(context);
         },
       ),
@@ -730,7 +979,16 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
       context: context,
       builder: (context) => SelectorPrestamoWidget(
         onPrestamoSeleccionado: (prestamoId) {
-          setState(() => _selectedId = prestamoId);
+          final prestamosAsync = ref.read(prestamosListProvider);
+          String? nombre;
+          prestamosAsync.whenData((prestamos) {
+            final prestamo = prestamos.where((p) => p.id == prestamoId).firstOrNull;
+            nombre = prestamo != null ? '${prestamo.codigo} - ${prestamo.nombreCliente ?? ''}' : 'Préstamo #$prestamoId';
+          });
+          setState(() {
+            _selectedId = prestamoId;
+            _selectedEntityName = nombre ?? 'Préstamo #$prestamoId';
+          });
           Navigator.pop(context);
         },
       ),
@@ -748,16 +1006,29 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
         content: SizedBox(
           width: double.maxFinite,
           child: cajasAsync.when(
-            data: (cajas) => ListView.builder(
-              shrinkWrap: true,
-              itemCount: cajas.length,
-              itemBuilder: (context, index) => ListTile(
-                title: Text(cajas[index].nombre, style: const TextStyle(color: Colors.white)),
-                onTap: () {
-                  setState(() => _selectedId = cajas[index].id);
-                  Navigator.pop(context);
-                },
-              ),
+            data: (cajas) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Opción de "Todas las cajas"
+                ListTile(
+                  leading: const Icon(Icons.all_inclusive, color: Colors.grey),
+                  title: const Text('Todas las cajas', style: TextStyle(color: Colors.grey)),
+                  onTap: () {
+                    setState(() { _selectedId = null; _selectedEntityName = null; });
+                    Navigator.pop(context);
+                  },
+                ),
+                const Divider(color: Colors.white12),
+                ...cajas.map((caja) => ListTile(
+                  leading: const Icon(Icons.account_balance, color: Colors.blue, size: 18),
+                  title: Text(caja.nombre, style: const TextStyle(color: Colors.white)),
+                  subtitle: Text('Saldo: Bs. ${caja.saldo.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  onTap: () {
+                    setState(() { _selectedId = caja.id; _selectedEntityName = caja.nombre; });
+                    Navigator.pop(context);
+                  },
+                )),
+              ],
             ),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
@@ -779,19 +1050,31 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
         formato: formatoStr == 'pdf' ? FormatoReporte.pdf : FormatoReporte.excel,
         periodo: _getPeriodo(periodoStr),
         clienteId: (_selectedReport == TipoReporte.estadoCuentaCliente) ? _selectedId : null,
-        cajaId: (_selectedReport == TipoReporte.resumenEgresos || _selectedReport == TipoReporte.resumenIngresos) ? _selectedId : null,
+        cajaId: (_selectedReport == TipoReporte.resumenEgresos ||
+                 _selectedReport == TipoReporte.resumenIngresos ||
+                 _selectedReport == TipoReporte.movimientosCaja) ? _selectedId : null,
+        prestamoId: (_selectedReport == TipoReporte.resumenPrestamo) ? _selectedId : null,
       );
 
       final result = await generarReporte(parametros);
 
       result.fold(
-        (failure) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${failure.message}'), backgroundColor: Colors.red)),
+        (failure) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${failure.message}'),
+            backgroundColor: Colors.red,
+          ),
+        ),
         (resultado) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Reporte generado: ${resultado.nombreArchivo}'),
-              backgroundColor: Colors.green,
-              action: SnackBarAction(label: 'Abrir', textColor: Colors.white, onPressed: () => OpenFile.open(resultado.rutaArchivo)),
+              content: Text('✓ ${resultado.nombreArchivo}'),
+              backgroundColor: Colors.green.shade700,
+              action: SnackBarAction(
+                label: 'Abrir',
+                textColor: Colors.white,
+                onPressed: () => OpenFile.open(resultado.rutaArchivo),
+              ),
             ),
           );
         },
@@ -808,6 +1091,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
       case 'ultimoMes': return PeriodoReporte.ultimoMes;
       case 'ultimoTrimestre': return PeriodoReporte.ultimoTrimestre;
       case 'ultimoAnio': return PeriodoReporte.ultimoAnio;
+      case 'todoElTiempo': return PeriodoReporte.todoElTiempo;
       default: return PeriodoReporte.ultimoMes;
     }
   }

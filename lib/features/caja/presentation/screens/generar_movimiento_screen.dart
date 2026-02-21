@@ -15,14 +15,14 @@ import '../providers/caja_provider.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/usecases/caja_usecases.dart';
 
-import '../../../clientes/presentation/providers/cliente_provider.dart';
 import '../../../clientes/domain/entities/cliente.dart';
 
 import '../../../prestamos/domain/entities/prestamo.dart';
-import '../../../prestamos/presentation/providers/prestamo_provider.dart';
+import '../../../pagos/presentation/providers/pago_provider.dart';
 
 enum TipoMovimiento { ingreso, egreso, transferencia }
 enum SubTipoEgreso { simple, prestamo }
+enum SubTipoIngreso { simple, pagoPrestamo }
 
 class GenerarMovimientoScreen extends ConsumerStatefulWidget {
   const GenerarMovimientoScreen({super.key});
@@ -37,29 +37,35 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
   // Estado General
   TipoMovimiento _tipoMovimiento = TipoMovimiento.egreso;
   SubTipoEgreso _subTipoEgreso = SubTipoEgreso.simple;
+  SubTipoIngreso _subTipoIngreso = SubTipoIngreso.simple;
   DateTime _fecha = DateTime.now();
   bool _isLoading = false;
 
   // Controladores Generales
   late TextEditingController _montoController;
   late TextEditingController _descripcionController;
-  late TextEditingController _motivoController; // Para ingresos/transferencias
+  late TextEditingController _motivoController;
   
   // Campos
   int? _cajaOrigenId;
   int? _cajaDestinoId;
   String? _categoria;
 
-  // Campos Préstamo
+  // Campos Préstamo (Egreso)
   int? _clienteId;
   late TextEditingController _tasaController;
   late TextEditingController _plazoController;
   late TextEditingController _observacionesPrestamoController;
   TipoInteres _tipoInteres = TipoInteres.simple;
-  // Categorías persistentes (ahora se cargan de DB)
   final Set<String> _categoriasSession = {};
-  
   Map<String, double>? _totalesPrestamo;
+
+  // Campos Pago de Préstamo (Ingreso)
+  int? _clienteIdPago;
+  int? _prestamoIdPago;
+  String? _prestamoCodigoPago;
+  double? _saldoPagoPendiente;
+  bool _esAbonoCapitalPago = false;
 
   @override
   void initState() {
@@ -152,6 +158,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         return;
       }
     }
+    if (_tipoMovimiento == TipoMovimiento.ingreso && _subTipoIngreso == SubTipoIngreso.pagoPrestamo) {
+      if (_clienteIdPago == null) {
+        _showError('Seleccione el cliente del préstamo');
+        return;
+      }
+      if (_prestamoIdPago == null) {
+        _showError('Seleccione el préstamo a pagar');
+        return;
+      }
+    }
 
     setState(() => _isLoading = true);
 
@@ -160,7 +176,11 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       
       switch (_tipoMovimiento) {
         case TipoMovimiento.ingreso:
-          await _registrarIngreso(monto);
+          if (_subTipoIngreso == SubTipoIngreso.pagoPrestamo) {
+            await _registrarPagoDesdeIngreso(monto);
+          } else {
+            await _registrarIngreso(monto);
+          }
           break;
         case TipoMovimiento.egreso:
           if (_subTipoEgreso == SubTipoEgreso.simple) {
@@ -175,7 +195,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       }
 
       if (mounted) {
-        // Invalidar providers para refrescar datos
+        // Invalidar providers globales
         ref.invalidate(cajasListProvider);
         ref.invalidate(cajasActivasProvider);
         ref.invalidate(saldoTotalProvider);
@@ -183,6 +203,17 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         ref.invalidate(movimientosGeneralesProvider);
         ref.invalidate(dashboardKPIsProvider);
         ref.invalidate(dashboardAlertasProvider);
+        // Si fue pago de préstamo, refrescar providers del préstamo
+        if (_tipoMovimiento == TipoMovimiento.ingreso &&
+            _subTipoIngreso == SubTipoIngreso.pagoPrestamo &&
+            _prestamoIdPago != null) {
+          ref.invalidate(pagosListProvider(_prestamoIdPago!));
+          ref.invalidate(resumenPagosProvider(_prestamoIdPago!));
+          ref.invalidate(prestamoDetailProvider(_prestamoIdPago!));
+          ref.invalidate(cuotasListProvider(_prestamoIdPago!));
+          ref.invalidate(resumenCuotasProvider(_prestamoIdPago!));
+          ref.invalidate(prestamosListProvider);
+        }
         
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -296,7 +327,30 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       _totalesPrestamo = null;
       _clienteId = null;
       _categoria = null;
+      // Reset campos pago de préstamo
+      _clienteIdPago = null;
+      _prestamoIdPago = null;
+      _prestamoCodigoPago = null;
+      _saldoPagoPendiente = null;
+      _esAbonoCapitalPago = false;
+      _subTipoIngreso = SubTipoIngreso.simple;
     });
+  }
+
+  /// Registra un pago de préstamo como ingreso en caja
+  Future<void> _registrarPagoDesdeIngreso(double monto) async {
+    final registrarPago = ref.read(registrarPagoUseCaseProvider);
+    final result = await registrarPago(
+      prestamoId: _prestamoIdPago!,
+      monto: monto,
+      fechaPago: _fecha,
+      cajaId: _cajaDestinoId,
+      metodoPago: 'EFECTIVO',
+      referencia: _motivoController.text.isNotEmpty ? _motivoController.text : null,
+      observaciones: _descripcionController.text.isNotEmpty ? _descripcionController.text : null,
+      esAbonoCapital: _esAbonoCapitalPago,
+    );
+    result.fold((l) => throw Exception(l.message), (r) {});
   }
   
   Future<void> _agregarNuevaCategoria() async {
@@ -373,6 +427,23 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                       if (_subTipoEgreso == SubTipoEgreso.prestamo && _tipoMovimiento == TipoMovimiento.egreso) ...[
                         const SizedBox(height: 24),
                         _buildClienteField(context),
+                      ],
+                      // Sub-tipo para Ingreso
+                      if (_tipoMovimiento == TipoMovimiento.ingreso) ...[
+                        const SizedBox(height: 20),
+                        _buildSubTipoIngresoSelector(context),
+                      ],
+                      if (_tipoMovimiento == TipoMovimiento.ingreso && _subTipoIngreso == SubTipoIngreso.pagoPrestamo) ...[
+                        const SizedBox(height: 24),
+                        _buildClientePagoField(context),
+                        if (_clienteIdPago != null) ...[
+                          const SizedBox(height: 16),
+                          _buildPrestamoPagoField(context),
+                        ],
+                        if (_prestamoIdPago != null) ...[
+                          const SizedBox(height: 16),
+                          _buildAbonoCapitalPagoToggle(context),
+                        ],
                       ],
                     ],
                   ),
@@ -1204,7 +1275,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                 controller: _tasaController,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
                 decoration: InputDecoration(
-                  labelText: 'Tasa/Año (%)',
+                  labelText: _tipoInteres == TipoInteres.wilson ? 'Tasa/Mes (%)' : 'Tasa/Año (%)',
                   labelStyle: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
                   prefixIcon: const Icon(Icons.percent, size: 18),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1250,8 +1321,9 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
-          _buildInnerSegmentOption(context, 'Interés Simple', TipoInteres.simple),
-          _buildInnerSegmentOption(context, 'Capitalización', TipoInteres.compuesto),
+          _buildInnerSegmentOption(context, 'Simple', TipoInteres.simple),
+          _buildInnerSegmentOption(context, 'Compuesto', TipoInteres.compuesto),
+          _buildInnerSegmentOption(context, 'Wilson', TipoInteres.wilson), // Nueva opción
         ],
       ),
     );
@@ -1288,4 +1360,189 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       ),
     );
   }
+
+  // =========================================================================
+  // WIDGETS DE PAGO DE PRÉSTAMO (INGRESO)
+  // =========================================================================
+
+  Widget _buildSubTipoIngresoSelector(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          _buildSubTipoIngresoOption(context, 'Ingreso Simple', SubTipoIngreso.simple),
+          _buildSubTipoIngresoOption(context, 'Pago de Préstamo', SubTipoIngreso.pagoPrestamo),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubTipoIngresoOption(BuildContext context, String label, SubTipoIngreso value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = _subTipoIngreso == value;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() {
+          _subTipoIngreso = value;
+          // Reset campos relacionados al cambiar sub-tipo
+          _clienteIdPago = null;
+          _prestamoIdPago = null;
+          _prestamoCodigoPago = null;
+          _saldoPagoPendiente = null;
+          _esAbonoCapitalPago = false;
+        }),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? (isDark ? const Color(0xFF8B5CF6).withOpacity(0.2) : Colors.white) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isSelected ? Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.5)) : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFF8B5CF6) : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClientePagoField(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final clientesAsync = ref.watch(clientesActivosProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('CLIENTE DEL PRÉSTAMO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        clientesAsync.when(
+          data: (clientes) => DropdownButtonFormField<int>(
+            value: _clienteIdPago,
+            onChanged: (v) => setState(() {
+              _clienteIdPago = v;
+              // Reset préstamo al cambiar cliente
+              _prestamoIdPago = null;
+              _prestamoCodigoPago = null;
+              _saldoPagoPendiente = null;
+            }),
+            dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.person_outline, size: 20, color: Color(0xFF94A3B8)),
+              hintText: 'Seleccionar cliente...',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+            ),
+            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+            items: clientes.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nombre))).toList(),
+          ),
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const Text('Error al cargar clientes'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPrestamoPagoField(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final prestamosAsync = ref.watch(prestamosActivosByClienteProvider(_clienteIdPago!));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('PRÉSTAMO A PAGAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        prestamosAsync.when(
+          data: (prestamos) {
+            if (prestamos.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+                ),
+                child: Text('Este cliente no tiene préstamos activos', style: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), fontSize: 13)),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButtonFormField<int>(
+                  value: _prestamoIdPago,
+                  onChanged: (v) {
+                    final p = prestamos.firstWhere((p) => p.id == v);
+                    setState(() {
+                      _prestamoIdPago = v;
+                      _prestamoCodigoPago = p.codigo;
+                      _saldoPagoPendiente = p.saldoPendiente;
+                    });
+                  },
+                  dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.receipt_long_outlined, size: 20, color: Color(0xFF94A3B8)),
+                    hintText: 'Seleccionar préstamo...',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+                  ),
+                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+                  items: prestamos.map((p) => DropdownMenuItem(
+                    value: p.id,
+                    child: Text('${p.codigo} — Saldo: Bs. ${Formatters.formatNumber(p.saldoPendiente)}'),
+                  )).toList(),
+                ),
+                if (_saldoPagoPendiente != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Saldo pendiente: Bs. ${Formatters.formatNumber(_saldoPagoPendiente!)}',
+                    style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF34D399) : const Color(0xFF10B981)),
+                  ),
+                ],
+              ],
+            );
+          },
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const Text('Error al cargar préstamos'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAbonoCapitalPagoToggle(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+      ),
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text('Abono directo a Capital', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 14, fontWeight: FontWeight.w500)),
+        subtitle: Text('Omite mora e interés — todo va al capital', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        value: _esAbonoCapitalPago,
+        onChanged: (v) => setState(() => _esAbonoCapitalPago = v),
+        activeColor: const Color(0xFF8B5CF6),
+      ),
+    );
+  }
 }
+

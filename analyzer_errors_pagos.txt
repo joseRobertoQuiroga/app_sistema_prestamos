@@ -1,0 +1,7 @@
+﻿Analyzing registrar_pago_screen.dart...                         
+
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:187:27 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:190:25 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:192:29 - prefer_const_constructors
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\pagos\presentation\screens\registrar_pago_screen.dart:232:15 - deprecated_member_use
+

@@ -38,6 +38,7 @@ enum PeriodoReporte {
   ultimoMes,
   ultimoTrimestre,
   ultimoAnio,
+  todoElTiempo,
   personalizado,
 }
 
@@ -53,6 +54,7 @@ enum TipoDatoExportacion {
 enum TipoPlantilla {
   clientes,
   prestamos,
+  wilsonCompleto,
 }
 
 // ============================================================================
@@ -82,9 +84,9 @@ class ConfiguracionReporte extends Equatable {
   });
 
   /// Obtiene el rango de fechas según el período
-  DateTimeRange getRango() {
+  ReportRangoFecha getRango() {
     if (periodo == PeriodoReporte.personalizado) {
-      return DateTimeRange(
+      return ReportRangoFecha(
         start: fechaInicio!,
         end: fechaFin!,
       );
@@ -92,25 +94,51 @@ class ConfiguracionReporte extends Equatable {
 
     final ahora = DateTime.now();
     DateTime inicio;
+    DateTime fin;
 
-    switch (periodo) {
-      case PeriodoReporte.ultimoMes:
-        inicio = DateTime(ahora.year, ahora.month - 1, ahora.day);
-        break;
-      case PeriodoReporte.ultimoTrimestre:
-        inicio = DateTime(ahora.year, ahora.month - 3, ahora.day);
-        break;
-      case PeriodoReporte.ultimoAnio:
-        inicio = DateTime(ahora.year - 1, ahora.month, ahora.day);
-        break;
-      case PeriodoReporte.personalizado:
-        inicio = fechaInicio!;
-        break;
+    if (tipo == TipoReporte.proyeccionCobros) {
+      // Para proyecciones miramos hacia adelante
+      inicio = ahora;
+      switch (periodo) {
+        case PeriodoReporte.ultimoMes:
+          fin = DateTime(ahora.year, ahora.month + 1, ahora.day);
+          break;
+        case PeriodoReporte.ultimoTrimestre:
+          fin = DateTime(ahora.year, ahora.month + 3, ahora.day);
+          break;
+        case PeriodoReporte.ultimoAnio:
+          fin = DateTime(ahora.year + 1, ahora.month, ahora.day);
+          break;
+        case PeriodoReporte.todoElTiempo:
+          fin = DateTime(ahora.year + 10, ahora.month, ahora.day); // 10 años futuro
+          break;
+        default:
+          fin = ahora.add(const Duration(days: 30));
+      }
+    } else {
+      // Para históricos miramos hacia atrás
+      fin = ahora;
+      switch (periodo) {
+        case PeriodoReporte.ultimoMes:
+          inicio = DateTime(ahora.year, ahora.month - 1, ahora.day);
+          break;
+        case PeriodoReporte.ultimoTrimestre:
+          inicio = DateTime(ahora.year, ahora.month - 3, ahora.day);
+          break;
+        case PeriodoReporte.ultimoAnio:
+          inicio = DateTime(ahora.year - 1, ahora.month, ahora.day);
+          break;
+        case PeriodoReporte.todoElTiempo:
+          inicio = DateTime(2000);
+          break;
+        default:
+          inicio = DateTime(ahora.year, ahora.month - 1, ahora.day);
+      }
     }
 
-    return DateTimeRange(
+    return ReportRangoFecha(
       start: inicio,
-      end: ahora,
+      end: fin,
     );
   }
 
@@ -123,6 +151,8 @@ class ConfiguracionReporte extends Equatable {
         return 'Último Trimestre';
       case PeriodoReporte.ultimoAnio:
         return 'Último Año';
+      case PeriodoReporte.todoElTiempo:
+        return 'Todo el Tiempo';
       case PeriodoReporte.personalizado:
         return 'Personalizado';
     }
@@ -284,7 +314,6 @@ extension TipoReporteExtension on TipoReporte {
 
   String get descripcion {
     switch (this) {
-      case TipoReporte.estadoCuentaCliente:
       case TipoReporte.carteraCompleta:
         return 'Estado general de préstamos activos y pendientes';
       case TipoReporte.prestamosCancelados:
@@ -367,6 +396,8 @@ extension TipoPlantillaExtension on TipoPlantilla {
         return 'Plantilla de Clientes';
       case TipoPlantilla.prestamos:
         return 'Plantilla de Préstamos';
+      case TipoPlantilla.wilsonCompleto:
+        return 'Plantilla Wilson con Historial';
     }
   }
 
@@ -376,6 +407,8 @@ extension TipoPlantillaExtension on TipoPlantilla {
         return 'Plantilla_Clientes';
       case TipoPlantilla.prestamos:
         return 'Plantilla_Prestamos';
+      case TipoPlantilla.wilsonCompleto:
+        return 'Plantilla_Wilson_Historial';
     }
   }
 }
@@ -384,11 +417,11 @@ extension TipoPlantillaExtension on TipoPlantilla {
 // CLASE DE AYUDA PARA RANGOS DE FECHA
 // ============================================================================
 
-class DateTimeRange {
+class ReportRangoFecha {
   final DateTime start;
   final DateTime end;
 
-  const DateTimeRange({required this.start, required this.end});
+  const ReportRangoFecha({required this.start, required this.end});
 
   Duration get duration => end.difference(start);
   int get days => duration.inDays;

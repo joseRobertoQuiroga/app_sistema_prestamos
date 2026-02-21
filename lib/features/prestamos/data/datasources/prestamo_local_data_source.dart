@@ -200,14 +200,16 @@ class PrestamoLocalDataSource {
         prestamo.toCompanion(),
       );
 
-      // 2. Insertar cuotas
-      for (final cuota in cuotas) {
-        final cuotaWithPrestamoId = CuotaModel.fromEntity(
-          cuota.copyWith(prestamoId: prestamoId),
-        );
-        await database.into(database.cuotas).insert(
-          cuotaWithPrestamoId.toCompanion(),
-        );
+      // 2. Insertar cuotas (Wilson no tiene cuotas pre-generadas)
+      if (cuotas.isNotEmpty) {
+        for (final cuota in cuotas) {
+          final cuotaWithPrestamoId = CuotaModel.fromEntity(
+            cuota.copyWith(prestamoId: prestamoId),
+          );
+          await database.into(database.cuotas).insert(
+            cuotaWithPrestamoId.toCompanion(),
+          );
+        }
       }
 
       // 3. Registrar movimiento de egreso en la caja

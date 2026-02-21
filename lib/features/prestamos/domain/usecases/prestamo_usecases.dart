@@ -107,10 +107,16 @@ class CreatePrestamo {
       plazoMeses: prestamo.plazoMeses,
     );
 
+    // Para Wilson, saldoPendiente = montoOriginal (solo capital)
+    // ya que el interés se calcula dinámicamente cada mes
+    final saldoPendiente = prestamo.tipoInteres == TipoInteres.wilson
+        ? prestamo.montoOriginal
+        : totales['montoTotal']!;
+
     // Crear préstamo con valores calculados
     final prestamoCompleto = prestamo.copyWith(
       montoTotal: totales['montoTotal']!,
-      saldoPendiente: totales['montoTotal']!,
+      saldoPendiente: saldoPendiente,
       cuotaMensual: totales['cuotaMensual']!,
       estado: EstadoPrestamo.activo,
       fechaRegistro: DateTime.now(),

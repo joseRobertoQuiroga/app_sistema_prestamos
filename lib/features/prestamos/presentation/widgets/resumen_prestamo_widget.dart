@@ -110,7 +110,7 @@ class ResumenPrestamoWidget extends StatelessWidget {
               _InfoItem(
                 icon: Icons.access_time,
                 label: 'Plazo',
-                value: Formatters.formatDuration(prestamo.plazoMeses),
+                value: Formatters.formatMonths(prestamo.plazoMeses),
               ),
               _InfoItem(
                 icon: Icons.payment,
@@ -241,6 +241,10 @@ class ResumenPrestamoWidget extends StatelessWidget {
   }
 
   Widget _buildCuotasSection(BuildContext context) {
+    if (prestamo.tipoInteres == TipoInteres.wilson) {
+      return const SizedBox.shrink();
+    }
+
     final totalCuotas = cuotasPagadas + cuotasPendientes;
 
     return Column(

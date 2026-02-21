@@ -7,6 +7,10 @@ import '../providers/prestamo_provider.dart';
 import '../widgets/resumen_prestamo_widget.dart';
 import '../widgets/tabla_amortizacion_widget.dart';
 import '../widgets/prestamo_pagos_widget.dart';
+import '../widgets/tabla_pagos_wilson_widget.dart';
+import '../widgets/historial_wilson_widget.dart';
+import '../../../pagos/presentation/providers/pago_provider.dart';
+import '../../../clientes/presentation/providers/cliente_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../presentation/widgets/state_widgets.dart';
 import 'prestamo_form_screen.dart';
@@ -150,32 +154,51 @@ class PrestamoDetailScreen extends ConsumerWidget {
                         loading: () => const Center(child: CircularProgressIndicator()),
                         error: (error, _) => Text('Error: $error'),
                       ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1, end: 0),
-
                       const SizedBox(height: 24),
 
-                      // Tabla de Amortización
-                      _buildSectionHeader(context, 'TABLA DE AMORTIZACIÓN', Icons.calendar_month_rounded),
-                      cuotasAsync.when(
-                        data: (cuotas) => _buildInfoCard(
-                          context,
-                          child: TablaAmortizacionWidget(
-                            cuotas: cuotas,
-                            prestamo: prestamo,
-                            compact: false,
+                      // Tabla de Amortización (Solo para préstamos NO Wilson)
+                      if (prestamo.tipoInteres != TipoInteres.wilson) ...[
+                        _buildSectionHeader(context, 'TABLA DE AMORTIZACIÓN', Icons.calendar_month_rounded),
+                        cuotasAsync.when(
+                          data: (cuotas) => _buildInfoCard(
+                            context,
+                            child: TablaAmortizacionWidget(
+                              cuotas: cuotas,
+                              prestamo: prestamo,
+                              compact: false,
+                            ),
                           ),
-                        ),
-                        loading: () => const Center(child: CircularProgressIndicator()),
-                        error: (error, _) => Text('Error: $error'),
-                      ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
-
-                      const SizedBox(height: 24),
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (error, _) => Text('Error: $error'),
+                        ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 24),
+                      ],
 
                       // Historial de Pagos
-                      _buildSectionHeader(context, 'HISTORIAL DE PAGOS', Icons.history_rounded),
-                      _buildInfoCard(
-                        context,
-                        child: PrestamoPagosWidget(prestamoId: prestamoId),
-                      ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0),
+                      if (prestamo.tipoInteres == TipoInteres.wilson) ...[
+                         _buildSectionHeader(context, 'HISTORIAL DE PAGOS', Icons.history_rounded),
+                         ref.watch(pagosListProvider(prestamoId)).when(
+                            data: (pagos) => _buildInfoCard(
+                              context,
+                              child: HistorialPagosWilsonWidget(
+                                pagos: pagos,
+                                montoOriginal: prestamo.montoOriginal,
+                                saldoActual: prestamo.saldoPendiente,
+                                tasaInteres: prestamo.tasaInteres,
+                                codigoPrestamo: prestamo.codigo,
+                                nombreCliente: prestamo.nombreCliente,
+                              ),
+                            ),
+                            loading: () => const Center(child: CircularProgressIndicator()),
+                            error: (e, _) => Text('Error: $e'),
+                         ),
+                      ] else ...[
+                        _buildSectionHeader(context, 'HISTORIAL DE PAGOS', Icons.history_rounded),
+                        _buildInfoCard(
+                          context,
+                          child: PrestamoPagosWidget(prestamoId: prestamoId),
+                        ),
+                      ].animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0),
 
                       const SizedBox(height: 24),
 
@@ -372,10 +395,15 @@ class PrestamoDetailScreen extends ConsumerWidget {
       const SnackBar(content: Text('Actualizando estados...')),
     );
 
+    // Wilson no requiere actualizar cuotas (no tiene)
+    // Solo actualizamos estado del préstamo
+    // Sin embargo, el repositorio manejará esto internamente si es necesario
     await repository.actualizarEstadosCuotas(prestamoId);
     await repository.actualizarEstadoPrestamo(prestamoId);
 
     ref.invalidate(prestamoDetailProvider(prestamoId));
+    // Invalidamos pagos también por si acaso
+    ref.invalidate(pagosListProvider(prestamoId));
     ref.invalidate(cuotasListProvider(prestamoId));
     ref.invalidate(resumenCuotasProvider(prestamoId));
 

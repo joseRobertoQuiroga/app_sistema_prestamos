@@ -200,6 +200,14 @@ class Formatters {
     return result;
   }
 
+  /// Formatea una duración en meses a texto legible
+  /// 
+  /// Ejemplo: `12` -> `12 meses`
+  static String formatMonths(int? months) {
+    if (months == null || months == 0) return '0 meses';
+    return '$months ${months == 1 ? 'mes' : 'meses'}';
+  }
+
   /// Formatea bytes a tamaño legible
   /// 
   /// Ejemplo: `1536` -> `1.5 KB`

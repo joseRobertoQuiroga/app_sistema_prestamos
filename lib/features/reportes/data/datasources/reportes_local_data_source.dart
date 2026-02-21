@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/database/database.dart';
 import '../services/excel_service.dart' as excel_svc;
 import '../services/pdf_service.dart';
@@ -106,22 +107,45 @@ class ReportesLocalDataSource {
   }
 
   Future<String> generarReporteMovimientos(ConfiguracionReporte config) async {
-    if (config.cajaId == null) throw Exception('Debe especificar una caja');
-
     final rango = config.getRango();
-    final caja = await (database.select(database.cajas)..where((tbl) => tbl.id.equals(config.cajaId!))).getSingle();
-    final movimientos = await (database.select(database.movimientos)
-          ..where((tbl) =>
-              tbl.cajaId.equals(config.cajaId!) &
-              tbl.fecha.isBiggerOrEqualValue(rango.start) &
-              tbl.fecha.isSmallerOrEqualValue(rango.end))
-          ..orderBy([(tbl) => OrderingTerm.asc(tbl.fecha)]))
-        .get();
+    
+    // Obtener movimientos según filtros
+    final query = database.select(database.movimientos);
+    
+    if (config.cajaId != null) {
+      query.where((tbl) => tbl.cajaId.equals(config.cajaId!));
+    }
+    
+    query.where((tbl) => 
+      tbl.fecha.isBiggerOrEqualValue(rango.start) & 
+      tbl.fecha.isSmallerOrEqualValue(rango.end)
+    );
 
-    final saldoInicial = caja.saldoInicial;
+    // Filtrar por tipo si es resumen de ingresos o egresos
+    if (config.tipo == TipoReporte.resumenIngresos) {
+      query.where((tbl) => tbl.tipo.equals('INGRESO'));
+    } else if (config.tipo == TipoReporte.resumenEgresos) {
+      query.where((tbl) => tbl.tipo.equals('EGRESO'));
+    }
+
+    // Ordenar por categoría y luego por fecha para facilitar lectura agrupada
+    query.orderBy([(tbl) => OrderingTerm.asc(tbl.categoria), (tbl) => OrderingTerm.asc(tbl.fecha)]);
+
+    final movimientos = await query.get();
+
+    String nombreCaja = 'Consolidado General';
+    double saldoInicial = 0;
+    double saldoFinal = 0;
+
+    if (config.cajaId != null) {
+      final caja = await (database.select(database.cajas)..where((tbl) => tbl.id.equals(config.cajaId!))).getSingle();
+      nombreCaja = caja.nombre;
+      saldoInicial = caja.saldoInicial;
+      saldoFinal = caja.saldoActual;
+    }
+
     final totalIngresos = movimientos.where((m) => m.tipo == 'INGRESO').fold<double>(0, (sum, m) => sum + m.monto);
     final totalEgresos = movimientos.where((m) => m.tipo == 'EGRESO').fold<double>(0, (sum, m) => sum + m.monto);
-    final saldoFinal = caja.saldoActual;
 
     if (config.formato == FormatoReporte.pdf) {
       final movimientosResumen = movimientos.map((m) {
@@ -129,12 +153,19 @@ class ReportesLocalDataSource {
           fecha: m.fecha,
           tipo: m.tipo,
           descripcion: m.descripcion,
+          categoria: m.categoria,
           monto: m.monto,
         );
       }).toList();
 
+      final tituloReporte = config.tipo == TipoReporte.resumenIngresos 
+          ? 'RESUMEN DE INGRESOS' 
+          : config.tipo == TipoReporte.resumenEgresos 
+              ? 'RESUMEN DE EGRESOS' 
+              : 'REPORTE DE MOVIMIENTOS';
+
       return await pdfService.generarReporteMovimientos(
-        nombreCaja: caja.nombre,
+        nombreCaja: nombreCaja,
         saldoInicial: saldoInicial,
         totalIngresos: totalIngresos,
         totalEgresos: totalEgresos,
@@ -142,10 +173,23 @@ class ReportesLocalDataSource {
         movimientos: movimientosResumen,
         fechaInicio: rango.start,
         fechaFin: rango.end,
+        tituloReporte: tituloReporte,
       );
     } else {
-      final movimientosConJoin = await _getMovimientosConJoin(config.cajaId!, rango.start, rango.end);
-      return await excelService.exportarMovimientos(movimientosConJoin);
+      final movimientosConJoin = await _getMovimientosConJoin(config.cajaId, rango.start, rango.end);
+      
+      // Filtrar el join también si es necesario
+      var filtrados = movimientosConJoin;
+      if (config.tipo == TipoReporte.resumenIngresos) {
+        filtrados = filtrados.where((m) => m.tipo == 'INGRESO').toList();
+      } else if (config.tipo == TipoReporte.resumenEgresos) {
+        filtrados = filtrados.where((m) => m.tipo == 'EGRESO').toList();
+      }
+      
+      // Ordenar por categoría para Excel
+      filtrados.sort((a, b) => a.categoria.compareTo(b.categoria));
+      
+      return await excelService.exportarMovimientos(filtrados);
     }
   }
 
@@ -194,7 +238,12 @@ class ReportesLocalDataSource {
 
     final rango = config.getRango();
     
-    // Obtener movimientos del cliente (préstamos y pagos)
+    // Obtener cliente
+    final cliente = await (database.select(database.clientes)
+          ..where((tbl) => tbl.id.equals(config.clienteId!)))
+        .getSingle();
+
+    // Obtener préstamos del cliente
     final prestamos = await (database.select(database.prestamos)
           ..where((tbl) => tbl.clienteId.equals(config.clienteId!))
           ..orderBy([(tbl) => OrderingTerm.asc(tbl.fechaRegistro)]))
@@ -205,37 +254,66 @@ class ReportesLocalDataSource {
           ..orderBy([(tbl) => OrderingTerm.asc(tbl.fechaPago)]))
         .get();
 
-    // Unificar y ordenar cronológicamente
-    final items = <excel_svc.ItemEstadoCuenta>[];
-    double saldoAcumulado = 0;
-
-    for (final p in prestamos) {
-      saldoAcumulado += p.montoTotal;
-      items.add(excel_svc.ItemEstadoCuenta(
-        fecha: p.fechaInicio,
-        concepto: 'Préstamo ${p.codigo}',
-        monto: p.montoTotal, // Cargo positivo
-        saldo: saldoAcumulado,
-        tipo: 'CARGO',
-      ));
-    }
-
-    for (final p in pagos) {
-      saldoAcumulado -= p.montoPago;
-      items.add(excel_svc.ItemEstadoCuenta(
-        fecha: p.fechaPago,
-        concepto: 'Pago ${p.codigo} (${p.metodoPago})',
-        monto: -p.montoPago, // Abono negativo
-        saldo: saldoAcumulado,
-        tipo: 'ABONO',
-      ));
-    }
-
-    items.sort((a, b) => a.fecha.compareTo(b.fecha));
-
     if (config.formato == FormatoReporte.pdf) {
-      throw Exception('Formato PDF no implementado para este reporte');
+      // Construir listas tipadas para el PDF
+      final pagosResumen = pagos.map((p) {
+        final prestamoCod = prestamos.firstWhere(
+          (pr) => pr.id == p.prestamoId,
+          orElse: () => prestamos.first,
+        );
+        return PagoResumen(
+          fecha: p.fechaPago,
+          codigoPrestamo: prestamoCod.codigo,
+          monto: p.montoPago,
+          montoCapital: p.montoCapital,
+          montoInteres: p.montoInteres,
+          metodoPago: p.metodoPago,
+        );
+      }).toList();
+
+      final prestamosResumen = prestamos.map((p) => PrestamoResumen(
+        codigo: p.codigo,
+        montoOriginal: p.montoOriginal,
+        saldoPendiente: p.saldoPendiente,
+        estado: p.estado,
+      )).toList();
+
+      return await pdfService.generarReporteEstadoCuentaCliente(
+        nombreCliente: '${cliente.nombres} ${cliente.apellidos}',
+        documentoCliente: cliente.numeroDocumento,
+        pagos: pagosResumen,
+        prestamos: prestamosResumen,
+        fechaInicio: rango.start,
+        fechaFin: rango.end,
+      );
     } else {
+      // Construir items para Excel (lógica original)
+      final items = <excel_svc.ItemEstadoCuenta>[];
+      double saldoAcumulado = 0;
+
+      for (final p in prestamos) {
+        saldoAcumulado += p.montoTotal;
+        items.add(excel_svc.ItemEstadoCuenta(
+          fecha: p.fechaInicio,
+          concepto: 'Préstamo ${p.codigo}',
+          monto: p.montoTotal,
+          saldo: saldoAcumulado,
+          tipo: 'CARGO',
+        ));
+      }
+
+      for (final p in pagos) {
+        saldoAcumulado -= p.montoPago;
+        items.add(excel_svc.ItemEstadoCuenta(
+          fecha: p.fechaPago,
+          concepto: 'Pago ${p.codigo} (${p.metodoPago})',
+          monto: -p.montoPago,
+          saldo: saldoAcumulado,
+          tipo: 'ABONO',
+        ));
+      }
+
+      items.sort((a, b) => a.fecha.compareTo(b.fecha));
       return await excelService.exportarEstadoCuentaCliente(items);
     }
   }
@@ -255,31 +333,104 @@ class ReportesLocalDataSource {
 
     final results = await query.get();
 
-    final items = results.map((row) {
+    final excelItems = <excel_svc.ItemProyeccion>[];
+    final pdfItems = <ProyeccionItem>[];
+
+    for (final row in results) {
       final cuota = row.readTable(database.cuotas);
       final prestamo = row.readTable(database.prestamos);
       final cliente = row.readTable(database.clientes);
 
-      // Calcular mora estimada si ya venció
       double moraEst = 0;
       if (cuota.fechaVencimiento.isBefore(DateTime.now())) {
         final diasAtraso = DateTime.now().difference(cuota.fechaVencimiento).inDays;
-        // Lógica simple de mora: 0.5% por día (ejemplo, ajustar según negocio)
         moraEst = cuota.saldoPendiente * 0.005 * diasAtraso;
       }
 
-      return excel_svc.ItemProyeccion(
+      final nombreCliente = '${cliente.nombres} ${cliente.apellidos}';
+
+      excelItems.add(excel_svc.ItemProyeccion(
         fechaVencimiento: cuota.fechaVencimiento,
-        nombreCliente: '${cliente.nombres} ${cliente.apellidos}',
+        nombreCliente: nombreCliente,
         codigoPrestamo: prestamo.codigo,
         numeroCuota: cuota.numeroCuota,
         montoCuota: cuota.montoCuota,
         moraEstimada: moraEst,
-        totalCobrar: cuota.saldoPendiente + moraEst, // Aproximado
-      );
-    }).toList();
+        totalCobrar: cuota.saldoPendiente + moraEst,
+      ));
 
-    return await excelService.exportarProyeccionCobros(items);
+      pdfItems.add(ProyeccionItem(
+        fechaVencimiento: cuota.fechaVencimiento,
+        nombreCliente: nombreCliente,
+        codigoPrestamo: prestamo.codigo,
+        numeroCuota: cuota.numeroCuota,
+        montoCuota: cuota.montoCuota,
+        moraEstimada: moraEst,
+      ));
+    }
+
+    if (config.formato == FormatoReporte.pdf) {
+      final totalProyectado = pdfItems.fold<double>(0, (sum, c) => sum + c.montoCuota + c.moraEstimada);
+      return await pdfService.generarReporteProyeccionCobros(
+        items: pdfItems,
+        totalProyectado: totalProyectado,
+        totalCuotas: pdfItems.length,
+        fechaInicio: rango.start,
+        fechaFin: rango.end,
+      );
+    } else {
+      return await excelService.exportarProyeccionCobros(excelItems);
+    }
+  }
+
+  Future<String> generarReporteResumenPrestamo(ConfiguracionReporte config) async {
+    if (config.prestamoId == null) throw Exception('Debe seleccionar un préstamo');
+
+    final prestamo = await (database.select(database.prestamos)
+          ..where((tbl) => tbl.id.equals(config.prestamoId!)))
+        .getSingle();
+    
+    final cliente = await (database.select(database.clientes)
+          ..where((tbl) => tbl.id.equals(prestamo.clienteId)))
+        .getSingle();
+
+    final pagos = await (database.select(database.pagos)
+          ..where((tbl) => tbl.prestamoId.equals(prestamo.id))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.fechaPago)]))
+        .get();
+
+    final items = pagos.map((p) => excel_svc.Pago(
+      codigo: p.codigo,
+      codigoPrestamo: prestamo.codigo,
+      nombreCliente: '${cliente.nombres} ${cliente.apellidos}',
+      montoPago: p.montoPago,
+      montoCapital: p.montoCapital,
+      montoInteres: p.montoInteres,
+      montoMora: p.montoMora,
+      fechaPago: p.fechaPago,
+      metodoPago: p.metodoPago,
+      observaciones: p.observaciones,
+      fechaRegistro: p.fechaRegistro,
+    )).toList();
+
+    if (config.formato == FormatoReporte.pdf) {
+      return await pdfService.generarPdfTabla(
+        titulo: 'RESUMEN EJECUTIVO DE PRÉSTAMO',
+        subtitulo: 'Préstamo: ${prestamo.codigo} - Cliente: ${cliente.nombres} ${cliente.apellidos}',
+        headers: ['Fecha', 'Código Pago', 'Monto', 'Capital', 'Interés', 'Mora'],
+        rows: items.map<List<String>>((i) => [
+          DateFormat('dd/MM/yyyy').format(i.fechaPago),
+          i.codigo,
+          'Bs. ${i.montoPago.toStringAsFixed(2)}',
+          'Bs. ${i.montoCapital.toStringAsFixed(2)}',
+          'Bs. ${i.montoInteres.toStringAsFixed(2)}',
+          'Bs. ${i.montoMora.toStringAsFixed(2)}',
+        ]).toList(),
+        nombreArchivo: 'Resumen_Prestamo_${prestamo.codigo}',
+      );
+    } else {
+      return await excelService.exportarPagos(items);
+    }
   }
 
   Future<String> generarReporteCancelados(ConfiguracionReporte config) async {
@@ -352,8 +503,12 @@ class ReportesLocalDataSource {
     return await excelService.generarPlantillaPrestamos();
   }
 
+  Future<String> generarPlantillaWilsonCompleto() async {
+    return await excelService.generarPlantillaWilsonCompleto();
+  }
+
   // =========================================================================
-  // ✅ IMPORTACIÓN - COMPLETA Y FUNCIONAL
+  // IMPORTACIÓN DE DATOS
   // =========================================================================
 
   /// Importa clientes desde archivo Excel
@@ -369,13 +524,9 @@ class ReportesLocalDataSource {
       },
       // Guardar cliente
       (cliente) async {
-        final partes = cliente.nombre.split(' ');
-        final nombres = partes.length > 1 
-            ? partes.sublist(0, partes.length ~/ 2).join(' ') 
-            : cliente.nombre;
-        final apellidos = partes.length > 1 
-            ? partes.sublist(partes.length ~/ 2).join(' ') 
-            : '';
+        final partes = cliente.nombreCompleto.split(' ');
+        final nombres = partes[0];
+        final apellidos = partes.length > 1 ? partes.sublist(1).join(' ') : '';
         
         return await database.into(database.clientes).insert(
           ClientesCompanion.insert(
@@ -396,29 +547,235 @@ class ReportesLocalDataSource {
     );
   }
 
-  /// ✅ Importa préstamos desde archivo Excel - IMPLEMENTACIÓN COMPLETA
   Future<ResultadoImportacion> importarPrestamos(String rutaArchivo) async {
     return await importacionService.importarPrestamos(
       rutaArchivo,
-      // Obtener cliente por CI
       (ci) async {
         final results = await (database.select(database.clientes)
               ..where((tbl) => tbl.numeroDocumento.equals(ci)))
             .get();
         return results.isNotEmpty ? results.first.id : null;
       },
-      // Obtener caja por nombre
       (nombreCaja) async {
         final results = await (database.select(database.cajas)
               ..where((tbl) => tbl.nombre.equals(nombreCaja)))
             .get();
         return results.isNotEmpty ? results.first.id : null;
       },
-      // ✅ GUARDAR PRÉSTAMO COMPLETO
-      (prestamoImportacion) async {
-        return await _crearPrestamoCompleto(prestamoImportacion);
+      _crearPrestamoCompleto,
+    );
+  }
+
+  /// ✅ Importa préstamos desde archivo Excel - IMPLEMENTACIÓN COMPLETA
+  Future<ResultadoImportacion> importarWilsonCompleto(String rutaArchivo) async {
+    final resultadoParsing = await importacionService.importarWilsonCompleto(
+      rutaArchivo,
+      (ci) async {
+        final results = await (database.select(database.clientes)
+              ..where((tbl) => tbl.numeroDocumento.equals(ci)))
+            .get();
+        return results.isNotEmpty ? results.first.id : null;
+      },
+      (nombreCaja) async {
+        final results = await (database.select(database.cajas)
+              ..where((tbl) => tbl.nombre.equals(nombreCaja)))
+            .get();
+        return results.isNotEmpty ? results.first.id : null;
       },
     );
+
+    if (resultadoParsing.prestamo == null) {
+      return ResultadoImportacion(
+        totalRegistros: 1,
+        registrosExitosos: 0,
+        registrosConError: 1,
+        errores: resultadoParsing.errores,
+        fechaProceso: resultadoParsing.fechaProceso,
+      );
+    }
+
+    final prestamoData = resultadoParsing.prestamo!;
+    final pagosData = resultadoParsing.pagos;
+    final errores = List<ErrorImportacion>.from(resultadoParsing.errores);
+
+    try {
+      return await database.transaction(() async {
+        // 1. Crear el préstamo base
+        final prestamoId = await _crearPrestamoCompleto(prestamoData);
+
+        // 2. Aplicar pagos históricos uno por uno
+        int pagosExitosos = 0;
+        for (final pagoData in pagosData) {
+          try {
+            await _registrarPagoWilsonHistorico(
+              prestamoId: prestamoId,
+              monto: pagoData.monto,
+              fechaPago: pagoData.fecha,
+              cajaId: prestamoData.cajaId,
+              metodoPago: pagoData.metodo,
+              observaciones: pagoData.observaciones,
+              esAbonoCapital: pagoData.esAbonoCapital,
+            );
+            pagosExitosos++;
+          } catch (e) {
+            errores.add(ErrorImportacion(
+              fila: 0, // No tenemos fila exacta aquí fácilmente sin pasarla
+              campo: 'Historial Pagos',
+              mensaje: 'Error aplicando pago de ${pagoData.monto}: $e',
+            ));
+          }
+        }
+
+        return ResultadoImportacion(
+          totalRegistros: 1 + pagosData.length,
+          registrosExitosos: 1 + pagosExitosos,
+          registrosConError: pagosData.length - pagosExitosos,
+          errores: errores,
+          fechaProceso: DateTime.now(),
+        );
+      });
+    } catch (e) {
+      return ResultadoImportacion(
+        totalRegistros: 1 + pagosData.length,
+        registrosExitosos: 0,
+        registrosConError: 1 + pagosData.length,
+        errores: [ErrorImportacion(fila: 0, campo: 'general', mensaje: e.toString())],
+        fechaProceso: DateTime.now(),
+      );
+    }
+  }
+
+  /// Registro de pago histórico simplificado para importación
+  /// Basado en el flujo de PagoLocalDataSource
+  Future<void> _registrarPagoWilsonHistorico({
+    required int prestamoId,
+    required double monto,
+    required DateTime fechaPago,
+    required int cajaId,
+    required String metodoPago,
+    String? observaciones,
+    bool esAbonoCapital = false,
+  }) async {
+    // 1. Obtener préstamo actual
+    final prestamo = await (database.select(database.prestamos)
+          ..where((tbl) => tbl.id.equals(prestamoId)))
+        .getSingle();
+
+    final saldoActual = prestamo.saldoPendiente;
+    final montoOriginal = prestamo.montoOriginal; // Base correcta
+    final tasaMensual = prestamo.tasaInteres / 100;
+
+    // 3. Calcular deuda histórica (Importación secuencial)
+    final todosLosPagos = await (database.select(database.pagos)
+          ..where((tbl) => tbl.prestamoId.equals(prestamoId)))
+        .get();
+
+    double interesTotalPagado = 0;
+    double moraYaPagadaEnMes = 0;
+    for (final p in todosLosPagos) {
+      interesTotalPagado += p.montoInteres;
+      if (p.fechaPago.year == fechaPago.year && p.fechaPago.month == fechaPago.month) {
+        moraYaPagadaEnMes += p.montoMora ?? 0;
+      }
+    }
+
+    // 4. Calcular deuda
+    final interesMensualBase = montoOriginal * tasaMensual;
+    
+    int mesesVencidos = (fechaPago.year - prestamo.fechaInicio.year) * 12 + (fechaPago.month - prestamo.fechaInicio.month);
+    if (fechaPago.day < prestamo.fechaInicio.day) mesesVencidos--;
+    if (mesesVencidos < 0) mesesVencidos = 0;
+
+    double interesADeudar = (mesesVencidos * interesMensualBase) - interesTotalPagado;
+    if (interesADeudar < 0) interesADeudar = 0;
+
+    double moraTotalCalculada = 0;
+    final vencimientoActual = DateTime(fechaPago.year, fechaPago.month, prestamo.fechaInicio.day);
+    if (fechaPago.isAfter(vencimientoActual)) {
+      final diasRetraso = fechaPago.difference(vencimientoActual).inDays;
+      if (diasRetraso > 0) {
+        moraTotalCalculada = (interesMensualBase * diasRetraso / 30).ceilToDouble();
+      }
+    }
+    double moraADeudar = (moraTotalCalculada - moraYaPagadaEnMes);
+    if (moraADeudar < 0) moraADeudar = 0;
+
+    if (esAbonoCapital) {
+      moraADeudar = 0;
+      interesADeudar = 0;
+    }
+
+    double montoRestante = monto;
+    double montoMora = montoRestante >= moraADeudar ? moraADeudar : montoRestante;
+    montoRestante -= montoMora;
+    double montoInteres = montoRestante >= interesADeudar ? interesADeudar : montoRestante;
+    montoRestante -= montoInteres;
+    double montoCapital = montoRestante >= saldoActual ? saldoActual : montoRestante;
+    montoRestante -= montoCapital;
+
+    double nuevoSaldo = saldoActual - montoCapital;
+    if (nuevoSaldo < 0.01) nuevoSaldo = 0;
+
+    // Generar código de pago
+    final codigoPago = 'PAG-IMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+
+    // Insertar pago
+    final pagoId = await database.into(database.pagos).insert(
+      PagosCompanion.insert(
+        prestamoId: prestamoId,
+        clienteId: prestamo.clienteId,
+        codigo: codigoPago,
+        montoPago: monto - montoRestante,
+        montoMora: Value(montoMora),
+        montoInteres: montoInteres,
+        montoCapital: montoCapital,
+        fechaPago: fechaPago,
+        cajaId: cajaId,
+        metodoPago: metodoPago,
+        observaciones: Value(observaciones),
+        fechaRegistro: Value(DateTime.now()),
+      ),
+    );
+
+    // Actualizar préstamo
+    await (database.update(database.prestamos)
+          ..where((tbl) => tbl.id.equals(prestamoId)))
+        .write(PrestamosCompanion(
+          saldoPendiente: Value(nuevoSaldo),
+          estado: Value(nuevoSaldo <= 0 ? 'PAGADO' : 'ACTIVO'),
+          fechaActualizacion: Value(DateTime.now()),
+        ));
+
+    // Registrar movimiento en caja
+    // Primero obtener saldo actual de la caja
+    final caja = await (database.select(database.cajas)..where((tbl) => tbl.id.equals(cajaId))).getSingle();
+    final saldoAnterior = caja.saldoActual;
+    final saldoNuevo = saldoAnterior + (monto - montoRestante);
+
+    final codigoMov = 'MOV-IMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+
+    await database.into(database.movimientos).insert(
+      MovimientosCompanion.insert(
+        codigo: codigoMov,
+        cajaId: cajaId,
+        tipo: 'INGRESO',
+        categoria: 'PAGO',
+        monto: monto - montoRestante,
+        saldoAnterior: saldoAnterior,
+        saldoNuevo: saldoNuevo,
+        descripcion: 'Pago importado préstamo ${prestamo.codigo}',
+        fecha: fechaPago,
+        pagoId: Value(pagoId),
+        fechaRegistro: Value(DateTime.now()),
+      ),
+    );
+
+    // Actualizar saldo de caja
+    await (database.update(database.cajas)..where((tbl) => tbl.id.equals(cajaId)))
+        .write(CajasCompanion(
+          saldoActual: Value(saldoNuevo),
+          fechaActualizacion: Value(DateTime.now()),
+        ));
   }
 
   // =========================================================================
@@ -431,7 +788,12 @@ class ReportesLocalDataSource {
     final codigo = await _generarCodigoPrestamo();
 
     // 2. Calcular valores del préstamo
-    final tasaMensual = datos.tasaInteres / 12 / 100; // Convertir anual a mensual
+    double tasaMensual;
+    if (datos.tipoInteres == 'WILSON') {
+      tasaMensual = datos.tasaInteres / 100; // Tasa mensual directa
+    } else {
+      tasaMensual = datos.tasaInteres / 12 / 100; // Convertir anual a mensual
+    }
     
     double cuotaMensual;
     double montoTotal;
@@ -441,6 +803,14 @@ class ReportesLocalDataSource {
       final interesTotal = datos.montoOriginal * (datos.tasaInteres / 100) * (datos.plazoMeses / 12);
       montoTotal = datos.montoOriginal + interesTotal;
       cuotaMensual = montoTotal / datos.plazoMeses;
+    } else if (datos.tipoInteres == 'WILSON') {
+      // Wilson: Interés simple mensual directo
+      final interesTotal = datos.montoOriginal * tasaMensual * datos.plazoMeses;
+      montoTotal = datos.montoOriginal + interesTotal;
+      
+      final capitalMensual = datos.montoOriginal / datos.plazoMeses;
+      final interesMensual = datos.montoOriginal * tasaMensual;
+      cuotaMensual = capitalMensual + interesMensual;
     } else {
       // Interés compuesto (amortización francesa)
       if (tasaMensual == 0) {
@@ -552,8 +922,12 @@ class ReportesLocalDataSource {
       double capital;
 
       if (tipoInteres == 'SIMPLE') {
-        // Interés simple: interés constante sobre monto original
+        // Interés simple: interés constante sobre monto original (Tasa es Anual)
         interes = (montoOriginal * tasaInteres / 100) / 12;
+        capital = cuotaMensual - interes;
+      } else if (tipoInteres == 'WILSON') {
+        // Wilson: interés constante sobre monto original (Tasa es Mensual)
+        interes = montoOriginal * (tasaInteres / 100);
         capital = cuotaMensual - interes;
       } else {
         // Interés compuesto: sobre saldo pendiente

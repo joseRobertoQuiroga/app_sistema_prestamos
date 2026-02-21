@@ -26,6 +26,12 @@ class GenerarTablaAmortizacion {
       }
 
       final cuotas = <Cuota>[];
+
+      // Wilson no genera tabla de amortización pre-calculada
+      // La tabla se construye con el historial de pagos reales
+      if (tipoInteres == TipoInteres.wilson) {
+        return Right(cuotas);
+      }
       
       if (tipoInteres == TipoInteres.simple) {
         cuotas.addAll(_generarAmortizacionInteresSimple(
@@ -156,7 +162,23 @@ class GenerarTablaAmortizacion {
     required TipoInteres tipoInteres,
     required int plazoMeses,
   }) {
-    if (tipoInteres == TipoInteres.simple) {
+    if (tipoInteres == TipoInteres.wilson) {
+      // Wilson: tasa es mensual directa (ej: 5% = 5% mensual)
+      final tasaMensual = tasaInteres / 100;
+      final interesMensualInicial = monto * tasaMensual;
+      // Interés total máximo teórico (si no se paga capital)
+      final interesTotal = interesMensualInicial * plazoMeses;
+      final montoTotal = monto + interesTotal;
+      // Cuota estimada primera: interés del mes + capital / plazo
+      final cuotaEstimada = interesMensualInicial + (monto / plazoMeses);
+
+      return {
+        'montoTotal': montoTotal,
+        'interesTotal': interesTotal,
+        'cuotaMensual': cuotaEstimada,
+        'interesMensual': interesMensualInicial,
+      };
+    } else if (tipoInteres == TipoInteres.simple) {
       final tasaMensual = tasaInteres / 100 / 12;
       final interesTotal = monto * tasaMensual * plazoMeses;
       final montoTotal = monto + interesTotal;

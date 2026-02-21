@@ -1184,8 +1184,8 @@ class $PrestamosTable extends Prestamos
       'cliente_id', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('REFERENCES clientes (id)'));
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES clientes (id) ON DELETE RESTRICT'));
   static const VerificationMeta _cajaIdMeta = const VerificationMeta('cajaId');
   @override
   late final GeneratedColumn<int> cajaId = GeneratedColumn<int>(

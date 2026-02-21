@@ -163,3 +163,30 @@ class ImportarPrestamos {
     return await repository.importarPrestamos(rutaArchivo);
   }
 }
+
+/// Caso de uso para importar préstamo Wilson con historial
+class ImportarWilsonCompleto {
+  final ReportesRepository repository;
+
+  ImportarWilsonCompleto(this.repository);
+
+  Future<Either<Failure, ResultadoImportacion>> call(String rutaArchivo) async {
+    // Validar que se proporcionó una ruta
+    if (rutaArchivo.isEmpty) {
+      return Left(
+        ValidationFailure('Debe seleccionar un archivo para importar'),
+      );
+    }
+
+    // Validar extensión del archivo
+    if (!rutaArchivo.toLowerCase().endsWith('.xlsx') &&
+        !rutaArchivo.toLowerCase().endsWith('.xls')) {
+      return Left(
+        ValidationFailure('El archivo debe ser un Excel (.xlsx o .xls)'),
+      );
+    }
+
+    // Delegar al repositorio
+    return await repository.importarWilsonCompleto(rutaArchivo);
+  }
+}

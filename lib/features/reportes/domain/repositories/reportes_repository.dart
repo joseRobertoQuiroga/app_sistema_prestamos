@@ -47,4 +47,11 @@ abstract class ReportesRepository {
   Future<Either<Failure, ResultadoImportacion>> importarPrestamos(
     String rutaArchivo,
   );
+
+  /// Importa un préstamo Wilson con su historial completo
+  /// 
+  /// [rutaArchivo] es la ruta del archivo Excel con las dos hojas
+  Future<Either<Failure, ResultadoImportacion>> importarWilsonCompleto(
+    String rutaArchivo,
+  );
 }

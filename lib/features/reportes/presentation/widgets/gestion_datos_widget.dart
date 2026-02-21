@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_file/open_file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:dartz/dartz.dart' hide OpenFile;
+import '../../../../core/errors/failures.dart';
 import '../providers/reportes_provider.dart';
 import '../../domain/entities/reportes_entities.dart';
 
@@ -195,6 +197,17 @@ class GestionDatosWidget extends ConsumerWidget {
                 TipoPlantilla.prestamos,
               ),
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildPlantillaButton(
+                context,
+                ref,
+                'Wilson + Historial',
+                Icons.history_edu,
+                Colors.orange,
+                TipoPlantilla.wilsonCompleto,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -241,6 +254,15 @@ class GestionDatosWidget extends ConsumerWidget {
                 Icons.account_balance,
                 Colors.green,
                 esClientes: false,
+              ),
+              const SizedBox(height: 8),
+              _buildImportButton(
+                context,
+                ref,
+                'Importar Wilson con Historial',
+                Icons.history_edu,
+                Colors.orange,
+                esWilsonHistorico: true,
               ),
             ],
           ),
@@ -314,10 +336,16 @@ class GestionDatosWidget extends ConsumerWidget {
     String titulo,
     IconData icono,
     Color color, {
-    required bool esClientes,
+    bool? esClientes,
+    bool esWilsonHistorico = false,
   }) {
     return OutlinedButton.icon(
-      onPressed: () => _seleccionarArchivo(context, ref, esClientes: esClientes),
+      onPressed: () => _seleccionarArchivo(
+        context,
+        ref,
+        esClientes: esClientes ?? false, // Default to false if null
+        esWilsonHistorico: esWilsonHistorico,
+      ),
       icon: Icon(icono, size: 20),
       label: Text(titulo),
       style: OutlinedButton.styleFrom(
@@ -455,14 +483,17 @@ class GestionDatosWidget extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref, {
     required bool esClientes,
+    bool esWilsonHistorico = false,
   }) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
-        dialogTitle: esClientes
-            ? 'Seleccionar archivo de clientes'
-            : 'Seleccionar archivo de préstamos',
+        dialogTitle: esWilsonHistorico
+            ? 'Seleccionar archivo Wilson con historial'
+            : esClientes
+                ? 'Seleccionar archivo de clientes'
+                : 'Seleccionar archivo de préstamos',
       );
 
       if (result == null || result.files.isEmpty) return;
@@ -493,79 +524,116 @@ class GestionDatosWidget extends ConsumerWidget {
         return;
       }
 
+      // Confirmar importación
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirmar Importación'),
+          content: Text(
+            esWilsonHistorico
+                ? '¿Desea importar el préstamo Wilson con su historial? Esto creará el préstamo y aplicará todos los pagos.'
+                : esClientes
+                    ? '¿Desea importar los clientes desde el archivo seleccionado?'
+                    : '¿Desea importar los préstamos desde el archivo seleccionado?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Importar'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmar != true) return;
+
       ref.read(importandoDatosProvider.notifier).state = true;
 
-      try {
-        if (esClientes) {
-          final importarClientes = ref.read(importarClientesUseCaseProvider);
-          final importResult = await importarClientes(rutaArchivo);
-
-          importResult.fold(
-            (failure) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: ${failure.message}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            (resultado) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Importación completada: ${resultado.registrosExitosos}/${resultado.totalRegistros} registros',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-          );
-        } else {
-          final importarPrestamos = ref.read(importarPrestamosUseCaseProvider);
-          final importResult = await importarPrestamos(rutaArchivo);
-
-          importResult.fold(
-            (failure) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: ${failure.message}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            (resultado) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Importación completada: ${resultado.registrosExitosos}/${resultado.totalRegistros} registros',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-          );
-        }
-      } finally {
-        ref.read(importandoDatosProvider.notifier).state = false;
+      final Either<Failure, ResultadoImportacion> importResult;
+      
+      if (esWilsonHistorico) {
+        final importarWilson = ref.read(importarWilsonCompletoUseCaseProvider);
+        importResult = await importarWilson(rutaArchivo);
+      } else if (esClientes) {
+        final importarClientes = ref.read(importarClientesUseCaseProvider);
+        importResult = await importarClientes(rutaArchivo);
+      } else {
+        final importarPrestamos = ref.read(importarPrestamosUseCaseProvider);
+        importResult = await importarPrestamos(rutaArchivo);
       }
+
+      importResult.fold(
+        (failure) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: ${failure.message}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        (resultado) {
+          if (context.mounted) {
+            _mostrarResultadoImportacion(context, resultado);
+          }
+        },
+      );
     } catch (e) {
-      ref.read(importandoDatosProvider.notifier).state = false;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error inesperado: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } finally {
+      ref.read(importandoDatosProvider.notifier).state = false;
     }
+  }
+
+  void _mostrarResultadoImportacion(BuildContext context, ResultadoImportacion resultado) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(resultado.exitoso ? 'Importación Exitosa' : 'Resumen de Importación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Total registros: ${resultado.totalRegistros}'),
+            Text('Exitosos: ${resultado.registrosExitosos}', style: const TextStyle(color: Colors.green)),
+            Text('Con error: ${resultado.registrosConError}', style: const TextStyle(color: Colors.red)),
+            if (resultado.errores.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Errores destacados:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(
+                height: 100,
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: resultado.errores.length > 5 ? 5 : resultado.errores.length,
+                  itemBuilder: (context, index) => Text(
+                    '• ${resultado.errores[index].mensaje}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 }

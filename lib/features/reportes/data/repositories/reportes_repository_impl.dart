@@ -59,7 +59,7 @@ class ReportesRepositoryImpl implements ReportesRepository {
           break;
 
         case TipoReporte.resumenPrestamo:
-          rutaArchivo = await dataSource.generarReporteEstadoCuenta(configuracion);
+          rutaArchivo = await dataSource.generarReporteResumenPrestamo(configuracion);
           break;
 
         case TipoReporte.resumenEgresos:
@@ -132,6 +132,9 @@ class ReportesRepositoryImpl implements ReportesRepository {
         case TipoPlantilla.prestamos:
           rutaArchivo = await dataSource.generarPlantillaPrestamos();
           break;
+        case TipoPlantilla.wilsonCompleto:
+          rutaArchivo = await dataSource.generarPlantillaWilsonCompleto();
+          break;
       }
 
       return Right(rutaArchivo);
@@ -161,6 +164,18 @@ class ReportesRepositoryImpl implements ReportesRepository {
       return Right(resultado);
     } catch (e) {
       return Left(ServerFailure('Error al importar préstamos: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ResultadoImportacion>> importarWilsonCompleto(
+    String rutaArchivo,
+  ) async {
+    try {
+      final resultado = await dataSource.importarWilsonCompleto(rutaArchivo);
+      return Right(resultado);
+    } catch (e) {
+      return Left(ServerFailure('Error al importar Wilson completo: ${e.toString()}'));
     }
   }
 }

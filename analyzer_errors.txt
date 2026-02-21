@@ -1,0 +1,53 @@
+﻿Analyzing generar_movimiento_screen.dart...                     
+
+warning - Unused import: '../../../../core/theme/app_theme.dart' - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:4:8 - unused_import
+warning - Unused import: '../../../../core/utils/validators.dart' - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:6:8 - unused_import
+warning - Unused import: '../../../../presentation/widgets/custom_button.dart' - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:8:8 - unused_import
+warning - Unused import: '../../../../presentation/widgets/custom_text_field.dart' - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:12:8 - unused_import
+warning - Unused import: '../../domain/usecases/caja_usecases.dart' - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:16:8 - unused_import
+warning - Unused import: '../../../clientes/domain/entities/cliente.dart' - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:18:8 - unused_import
+warning - The value of the field '_prestamoCodigoPago' isn't used - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:66:11 - unused_field
+   info - Statements in an if should be enclosed in a block - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:104:51 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:544:23 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:571:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:572:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:620:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:635:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:636:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:638:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:697:68 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:738:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:781:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:783:76 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:829:15 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:841:144 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:894:13 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:906:142 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:939:13 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:945:142 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:987:140 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1012:140 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1036:140 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1091:13 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1092:25 - prefer_const_literals_to_create_immutables
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1117:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1139:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1180:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1208:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1209:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1211:69 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1211:111 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1245:13 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1251:142 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1282:146 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1299:146 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1402:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1404:76 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1432:13 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1445:142 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1477:67 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1486:19 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1500:148 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1535:57 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\features\caja\presentation\screens\generar_movimiento_screen.dart:1543:9 - deprecated_member_use
+

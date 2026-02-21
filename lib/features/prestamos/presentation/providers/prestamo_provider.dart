@@ -104,13 +104,31 @@ final getResumenCuotasProvider = Provider<GetResumenCuotas>((ref) {
 // ============================================================================
 
 final calcularTotalesProvider = FutureProvider.family<Map<String, double>, ({double monto, double tasaInteres, TipoInteres tipoInteres, int plazoMeses})>((ref, p) async {
-  final tasaMensual = p.tasaInteres / 100 / 12;
+  final tasaMensual = p.tasaInteres / 100;
   double cuota, total;
+  
   if (p.tipoInteres == TipoInteres.simple) {
-    total = p.monto + (p.monto * tasaMensual * p.plazoMeses);
+    // Tasa anual convertida a mensual
+    final tasaMensualSimple = tasaMensual / 12;
+    total = p.monto + (p.monto * tasaMensualSimple * p.plazoMeses);
     cuota = total / p.plazoMeses;
+  } else if (p.tipoInteres == TipoInteres.wilson) {
+    // Wilson: Tasa es mensual DIRECTA
+    // Interés Total = Monto * TasaMensual * Plazo (Interés Simple directo)
+    // Solicitud usuario: "5% por 12 meses de 5000 es 3000 (60%)"
+    final interesTotal = p.monto * tasaMensual * p.plazoMeses;
+    total = p.monto + interesTotal;
+    
+    // Cuota INICIAL estimada = (Capital / Plazo) + (Interés del primer mes)
+    final capitalMensual = p.monto / p.plazoMeses;
+    final interesPrimerMes = p.monto * tasaMensual;
+    cuota = capitalMensual + interesPrimerMes;
+    
+    return {'montoOriginal': p.monto, 'interesTotal': interesTotal, 'montoTotal': total, 'cuotaMensual': cuota, 'interesMensual': interesPrimerMes};
   } else {
-    cuota = p.monto * (tasaMensual * pow(1 + tasaMensual, p.plazoMeses)) / (pow(1 + tasaMensual, p.plazoMeses) - 1);
+    // Compuesto: Tasa anual convertida a mensual
+    final tasaMensualComp = tasaMensual / 12;
+    cuota = p.monto * (tasaMensualComp * pow(1 + tasaMensualComp, p.plazoMeses)) / (pow(1 + tasaMensualComp, p.plazoMeses) - 1);
     total = cuota * p.plazoMeses;
   }
   return {'montoOriginal': p.monto, 'interesTotal': total - p.monto, 'montoTotal': total, 'cuotaMensual': cuota};
@@ -278,5 +296,18 @@ final prestamosFilteredProvider = Provider<AsyncValue<List<Prestamo>>>((ref) {
     data: (data) => AsyncValue.data(data.items),
     loading: () => const AsyncValue.loading(),
     error: (e, s) => AsyncValue.error(e, s),
+  );
+});
+
+/// Préstamos activos o en mora de un cliente específico.
+/// Usado para seleccionar el préstamo al registrar un pago desde la sección Ingreso.
+final prestamosActivosByClienteProvider = FutureProvider.family<List<Prestamo>, int>((ref, clienteId) async {
+  final getPrestamosByCliente = ref.watch(getPrestamosByClienteProvider);
+  final result = await getPrestamosByCliente(clienteId);
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (prestamos) => prestamos
+        .where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora)
+        .toList(),
   );
 });
