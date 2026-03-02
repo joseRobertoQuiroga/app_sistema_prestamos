@@ -37,7 +37,8 @@ class RegistrarPago {
     String? metodoPago,
     String? referencia,
     String? observaciones,
-    bool esAbonoCapital = false, // Nuevo parámetro
+    bool esAbonoCapital = false, 
+    bool esCobroInteres = false, // Nuevo parámetro
   }) async {
     // Validaciones
     if (prestamoId <= 0) {
@@ -61,7 +62,8 @@ class RegistrarPago {
       metodoPago: metodoPago,
       referencia: referencia,
       observaciones: observaciones,
-      esAbonoCapital: esAbonoCapital, // Pasar al repositorio
+      esAbonoCapital: esAbonoCapital,
+      esCobroInteres: esCobroInteres, // Pasar al repositorio
     );
   }
 }

@@ -95,13 +95,20 @@ class _TransferenciaScreenState extends ConsumerState<TransferenciaScreen> {
           _showError(failure.message);
         },
         (movimientos) {
-          // Invalidar providers
+          // Invalidar providers globales
           ref.invalidate(saldoTotalProvider);
           ref.invalidate(dashboardKPIsProvider);
           ref.invalidate(resumenGeneralProvider);
           ref.invalidate(movimientosGeneralesProvider);
           ref.invalidate(cajasListProvider);
           ref.invalidate(cajasActivasProvider);
+          // Invalidar providers de caja específica para actualizar saldo en CajaDetailScreen
+          ref.invalidate(cajaByIdProvider(_cajaOrigenSeleccionada!));
+          ref.invalidate(resumenCajaProvider(_cajaOrigenSeleccionada!));
+          ref.invalidate(movimientosByCajaProvider(_cajaOrigenSeleccionada!));
+          ref.invalidate(cajaByIdProvider(_cajaDestinoSeleccionada!));
+          ref.invalidate(resumenCajaProvider(_cajaDestinoSeleccionada!));
+          ref.invalidate(movimientosByCajaProvider(_cajaDestinoSeleccionada!));
           
           setState(() => _isLoading = false);
           _showSuccess(

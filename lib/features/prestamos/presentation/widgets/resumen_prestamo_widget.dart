@@ -73,12 +73,13 @@ class ResumenPrestamoWidget extends StatelessWidget {
                 value: Formatters.formatCurrency(prestamo.montoOriginal),
                 valueColor: Colors.blue,
               ),
-              _InfoItem(
-                icon: Icons.trending_up,
-                label: 'Monto Total (con intereses)',
-                value: Formatters.formatCurrency(prestamo.montoTotal),
-                valueColor: Colors.orange,
-              ),
+              if (prestamo.tipoInteres != TipoInteres.wilson)
+                _InfoItem(
+                  icon: Icons.trending_up,
+                  label: 'Monto Total (con intereses)',
+                  value: Formatters.formatCurrency(prestamo.montoTotal),
+                  valueColor: Colors.orange,
+                ),
               _InfoItem(
                 icon: Icons.check_circle,
                 label: 'Monto Pagado',

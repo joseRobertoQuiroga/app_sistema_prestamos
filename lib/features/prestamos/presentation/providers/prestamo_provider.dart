@@ -300,14 +300,15 @@ final prestamosFilteredProvider = Provider<AsyncValue<List<Prestamo>>>((ref) {
 });
 
 /// Préstamos activos o en mora de un cliente específico.
-/// Usado para seleccionar el préstamo al registrar un pago desde la sección Ingreso.
+/// ✅ MEJORADO: Ahora es reactivo a prestamosListProvider
 final prestamosActivosByClienteProvider = FutureProvider.family<List<Prestamo>, int>((ref, clienteId) async {
-  final getPrestamosByCliente = ref.watch(getPrestamosByClienteProvider);
-  final result = await getPrestamosByCliente(clienteId);
-  return result.fold(
-    (failure) => throw Exception(failure.message),
-    (prestamos) => prestamos
-        .where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora)
+  final prestamosAsync = ref.watch(prestamosListProvider);
+  
+  return prestamosAsync.when(
+    data: (prestamos) => prestamos
+        .where((p) => p.clienteId == clienteId && (p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora))
         .toList(),
+    loading: () => [],
+    error: (_, __) => [],
   );
 });

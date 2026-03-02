@@ -27,18 +27,67 @@ class ReportesLocalDataSource {
 
   Future<String> generarReporteCartera(ConfiguracionReporte config) async {
     final rango = config.getRango();
-    final prestamos = await (database.select(database.prestamos)
-          ..where((tbl) =>
-              tbl.fechaRegistro.isBiggerOrEqualValue(rango.start) &
-              tbl.fechaRegistro.isSmallerOrEqualValue(rango.end)))
-        .get();
+    
+    // Fetch loans with client names
+    final query = database.select(database.prestamos).join([
+      leftOuterJoin(database.clientes, database.clientes.id.equalsExp(database.prestamos.clienteId)),
+    ])..where(
+        (database.prestamos.fechaRegistro.isBiggerOrEqualValue(rango.start) &
+        database.prestamos.fechaRegistro.isSmallerOrEqualValue(rango.end)) &
+        (database.prestamos.estado.equals('ACTIVO') | database.prestamos.estado.equals('MORA'))
+    );
 
-    final totalPrestamos = prestamos.length;
-    final prestamosActivos = prestamos.where((p) => p.estado == 'ACTIVO').length;
-    final prestamosEnMora = prestamos.where((p) => p.estado == 'MORA').length;
-    final prestamosPagados = prestamos.where((p) => p.estado == 'PAGADO').length;
-    final carteraTotal = prestamos.fold<double>(0, (sum, p) => sum + p.montoTotal);
-    final capitalPorCobrar = prestamos.fold<double>(0, (sum, p) => sum + p.saldoPendiente);
+    final results = await query.get();
+    
+    // Fetch all payments for these loans to calculate actual totals
+    final prestamoIds = results.map((r) => r.readTable(database.prestamos).id).toList();
+    final pagosMap = <int, double>{};
+    
+    if (prestamoIds.isNotEmpty) {
+      final pagos = await (database.select(database.pagos)
+            ..where((tbl) => tbl.prestamoId.isIn(prestamoIds)))
+          .get();
+      for (final pago in pagos) {
+        pagosMap[pago.prestamoId] = (pagosMap[pago.prestamoId] ?? 0) + pago.montoPago;
+      }
+    }
+
+    final prestamosList = <PrestamoCartera>[];
+    int totalPrestamos = results.length;
+    int prestamosActivos = 0;
+    int prestamosEnMora = 0;
+    int prestamosPagados = 0;
+    double carteraTotal = 0;
+    double capitalPorCobrar = 0;
+
+    for (final row in results) {
+      final p = row.readTable(database.prestamos);
+      final c = row.readTableOrNull(database.clientes);
+      final nombreCliente = c != null ? '${c.nombres} ${c.apellidos}' : 'N/A';
+      final totalPagado = pagosMap[p.id] ?? 0;
+
+      // Counts
+      if (p.estado == 'ACTIVO') prestamosActivos++;
+      if (p.estado == 'MORA') prestamosEnMora++;
+      if (p.estado == 'PAGADO') prestamosPagados++;
+
+      // Calculations - Improved for Wilson accuracy (Total actual = pagado + pendiente)
+      final actualTotal = p.tipoInteres == 'WILSON' 
+          ? (totalPagado + p.saldoPendiente) 
+          : p.montoTotal;
+          
+      carteraTotal += actualTotal;
+      capitalPorCobrar += p.saldoPendiente;
+
+      prestamosList.add(PrestamoCartera(
+        codigo: p.codigo,
+        nombreCliente: nombreCliente,
+        montoOriginal: p.montoOriginal,
+        saldoPendiente: p.saldoPendiente,
+        montoPagado: totalPagado,
+      ));
+    }
+
     final tasaMorosidad = totalPrestamos > 0 ? (prestamosEnMora / totalPrestamos) * 100 : 0.0;
 
     if (config.formato == FormatoReporte.pdf) {
@@ -52,6 +101,7 @@ class ReportesLocalDataSource {
         tasaMorosidad: tasaMorosidad,
         fechaInicio: rango.start,
         fechaFin: rango.end,
+        prestamos: prestamosList,
       );
     } else {
       final prestamosConJoin = await _getPrestamosConJoin(rango.start, rango.end);
@@ -73,15 +123,45 @@ class ReportesLocalDataSource {
       final prestamo = row.readTable(database.prestamos);
       final cliente = row.readTableOrNull(database.clientes);
       
-      // Obtener cuotas para calcular mora exacta
-      final cuotas = await (database.select(database.cuotas)
-            ..where((tbl) => tbl.prestamoId.equals(prestamo.id)))
-          .get();
-          
-      final totalMora = cuotas.fold<double>(0, (sum, c) => sum + (c.montoMora));
-      final diasMora = now.isAfter(prestamo.fechaVencimiento)
-          ? now.difference(prestamo.fechaVencimiento).inDays
-          : 0;
+      double totalMora = 0;
+      int diasMora = 0;
+
+      if (prestamo.tipoInteres.toUpperCase() == 'WILSON') {
+        // Cálculo de mora Wilson: Interés mensual * (días retraso / 30)
+        final ultimoPago = await (database.select(database.pagos)
+              ..where((tbl) => tbl.prestamoId.equals(prestamo.id))
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.fechaPago)])
+              ..limit(1))
+            .getSingleOrNull();
+
+        final fechaReferencia = ultimoPago?.fechaPago ?? prestamo.fechaInicio;
+        final diferenciaDias = now.difference(fechaReferencia).inDays;
+
+        if (diferenciaDias > 30) {
+          diasMora = diferenciaDias - 30;
+          final interesMensual = prestamo.saldoPendiente * (prestamo.tasaInteres / 100);
+          totalMora = (interesMensual * diasMora / 30).ceil().toDouble();
+        }
+      } else {
+        // Obtener cuotas para calcular mora exacta de préstamos normales
+        final cuotas = await (database.select(database.cuotas)
+              ..where((tbl) => tbl.prestamoId.equals(prestamo.id)))
+            .get();
+            
+        totalMora = cuotas.fold<double>(0, (sum, c) => sum + (c.montoMora));
+        diasMora = now.isAfter(prestamo.fechaVencimiento)
+            ? now.difference(prestamo.fechaVencimiento).inDays
+            : 0;
+            
+        // Si no ha vencido el préstamo pero hay cuotas en mora, buscar la más antigua
+        if (diasMora == 0) {
+          final cuotasMora = cuotas.where((c) => c.estado == 'MORA').toList();
+          if (cuotasMora.isNotEmpty) {
+            cuotasMora.sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+            diasMora = now.difference(cuotasMora.first.fechaVencimiento).inDays;
+          }
+        }
+      }
 
       prestamosEnMora.add(PrestamoMora(
         codigo: prestamo.codigo,
@@ -320,57 +400,90 @@ class ReportesLocalDataSource {
 
   Future<String> generarReporteProyeccion(ConfiguracionReporte config) async {
     final rango = config.getRango();
+    final now = DateTime.now();
     
-    // Obtener cuotas pendientes en el rango
-    final query = database.select(database.cuotas).join([
-      leftOuterJoin(database.prestamos, database.prestamos.id.equalsExp(database.cuotas.prestamoId)),
+    // Obtener préstamos activos para proyectar cobros
+    final query = database.select(database.prestamos).join([
       leftOuterJoin(database.clientes, database.clientes.id.equalsExp(database.prestamos.clienteId)),
-    ])..where(
-        database.cuotas.estado.equals('PENDIENTE') &
-        database.cuotas.fechaVencimiento.isBiggerOrEqualValue(rango.start) &
-        database.cuotas.fechaVencimiento.isSmallerOrEqualValue(rango.end)
-      )..orderBy([OrderingTerm.asc(database.cuotas.fechaVencimiento)]);
+    ])..where(database.prestamos.estado.isIn(['ACTIVO', 'Activo', 'MORA', 'En Mora', 'Mora', 'VENCIDA', 'Vencida']));
 
     final results = await query.get();
-
-    final excelItems = <excel_svc.ItemProyeccion>[];
     final pdfItems = <ProyeccionItem>[];
+    double totalProyectado = 0;
 
     for (final row in results) {
-      final cuota = row.readTable(database.cuotas);
       final prestamo = row.readTable(database.prestamos);
-      final cliente = row.readTable(database.clientes);
+      final cliente = row.readTableOrNull(database.clientes);
+      final nombreCliente = cliente != null ? '${cliente.nombres} ${cliente.apellidos}' : 'N/A';
 
-      double moraEst = 0;
-      if (cuota.fechaVencimiento.isBefore(DateTime.now())) {
-        final diasAtraso = DateTime.now().difference(cuota.fechaVencimiento).inDays;
-        moraEst = cuota.saldoPendiente * 0.005 * diasAtraso;
+      if (prestamo.tipoInteres.toUpperCase() == 'WILSON') {
+        // Proyección Wilson: Interés mensual sobre saldo pendiente
+        final ultimoPago = await (database.select(database.pagos)
+              ..where((tbl) => tbl.prestamoId.equals(prestamo.id))
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.fechaPago)])
+              ..limit(1))
+            .getSingleOrNull();
+
+        final fechaReferencia = ultimoPago?.fechaPago ?? prestamo.fechaInicio;
+        final proximoVencimiento = DateTime(fechaReferencia.year, fechaReferencia.month + 1, fechaReferencia.day);
+        
+        // Si el próximo pago cae en el rango o ya pasó (mora)
+        if (proximoVencimiento.isBefore(rango.end)) {
+          final interesMensual = prestamo.saldoPendiente * (prestamo.tasaInteres / 100);
+          final diasFaltantes = proximoVencimiento.difference(now).inDays;
+          final enMora = now.isAfter(proximoVencimiento);
+          final diasMora = enMora ? now.difference(proximoVencimiento).inDays : 0;
+
+          pdfItems.add(ProyeccionItem(
+            fechaVencimiento: proximoVencimiento,
+            nombreCliente: nombreCliente,
+            codigoPrestamo: prestamo.codigo,
+            numeroCuota: 0,
+            montoCuota: interesMensual,
+            diasFaltantes: diasFaltantes,
+            enMora: enMora,
+            diasMora: diasMora,
+          ));
+          totalProyectado += interesMensual;
+        }
+      } else {
+        // Préstamos con cuotas: Buscar cuotas pendientes
+        final cuotas = await (database.select(database.cuotas)
+              ..where((tbl) => tbl.prestamoId.equals(prestamo.id) & 
+                               tbl.estado.isNotIn(['PAGADA', 'CANCELADA', 'Pagada', 'Cancelada', 'pagada', 'cancelada'])))
+            .get();
+
+        print('DEBUG PRY - Préstamo ${prestamo.codigo}: ${cuotas.length} cuotas no pagadas encontradas.');
+
+        for (final cuota in cuotas) {
+          final isBeforeEnd = cuota.fechaVencimiento.isBefore(rango.end);
+          print('DEBUG PRY - Cuota ${cuota.numeroCuota}: vence ${cuota.fechaVencimiento}. Is before ${rango.end}? $isBeforeEnd');
+          if (isBeforeEnd) {
+            final diasFaltantes = cuota.fechaVencimiento.difference(now).inDays;
+            final enMora = cuota.estado.toUpperCase() == 'MORA' || cuota.estado.toUpperCase() == 'EN MORA' || now.isAfter(cuota.fechaVencimiento);
+            final diasMora = enMora ? now.difference(cuota.fechaVencimiento).inDays : 0;
+
+            pdfItems.add(ProyeccionItem(
+              fechaVencimiento: cuota.fechaVencimiento,
+              nombreCliente: nombreCliente,
+              codigoPrestamo: prestamo.codigo,
+              numeroCuota: cuota.numeroCuota,
+              montoCuota: cuota.montoCuota,
+              diasFaltantes: diasFaltantes,
+              enMora: enMora,
+              diasMora: diasMora,
+            ));
+            totalProyectado += cuota.montoCuota;
+          }
+        }
       }
 
-      final nombreCliente = '${cliente.nombres} ${cliente.apellidos}';
-
-      excelItems.add(excel_svc.ItemProyeccion(
-        fechaVencimiento: cuota.fechaVencimiento,
-        nombreCliente: nombreCliente,
-        codigoPrestamo: prestamo.codigo,
-        numeroCuota: cuota.numeroCuota,
-        montoCuota: cuota.montoCuota,
-        moraEstimada: moraEst,
-        totalCobrar: cuota.saldoPendiente + moraEst,
-      ));
-
-      pdfItems.add(ProyeccionItem(
-        fechaVencimiento: cuota.fechaVencimiento,
-        nombreCliente: nombreCliente,
-        codigoPrestamo: prestamo.codigo,
-        numeroCuota: cuota.numeroCuota,
-        montoCuota: cuota.montoCuota,
-        moraEstimada: moraEst,
-      ));
     }
 
+    // Ordenar por fecha de vencimiento
+    pdfItems.sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+
     if (config.formato == FormatoReporte.pdf) {
-      final totalProyectado = pdfItems.fold<double>(0, (sum, c) => sum + c.montoCuota + c.moraEstimada);
       return await pdfService.generarReporteProyeccionCobros(
         items: pdfItems,
         totalProyectado: totalProyectado,
@@ -379,7 +492,16 @@ class ReportesLocalDataSource {
         fechaFin: rango.end,
       );
     } else {
-      return await excelService.exportarProyeccionCobros(excelItems);
+      return await excelService.generarExcelGenerico(
+        titulo: 'Proyección de Cobros',
+        headers: ['Vencimiento', 'Cliente', 'Préstamo', 'Monto'],
+        rows: pdfItems.map((i) => [
+          DateFormat('dd/MM/yy').format(i.fechaVencimiento),
+          i.nombreCliente,
+          i.codigoPrestamo,
+          i.montoCuota.toStringAsFixed(2),
+        ]).toList(),
+      );
     }
   }
 
@@ -399,36 +521,50 @@ class ReportesLocalDataSource {
           ..orderBy([(tbl) => OrderingTerm.asc(tbl.fechaPago)]))
         .get();
 
-    final items = pagos.map((p) => excel_svc.Pago(
-      codigo: p.codigo,
-      codigoPrestamo: prestamo.codigo,
-      nombreCliente: '${cliente.nombres} ${cliente.apellidos}',
-      montoPago: p.montoPago,
-      montoCapital: p.montoCapital,
-      montoInteres: p.montoInteres,
-      montoMora: p.montoMora,
-      fechaPago: p.fechaPago,
-      metodoPago: p.metodoPago,
-      observaciones: p.observaciones,
-      fechaRegistro: p.fechaRegistro,
-    )).toList();
+    double totalPagado = 0;
+    double capitalRestante = prestamo.montoOriginal;
+    final List<List<String>> reportRows = [];
+    
+    for (final p in pagos) {
+      totalPagado += p.montoPago;
+      capitalRestante -= p.montoCapital;
+      
+      reportRows.add([
+        DateFormat('dd/MM/yyyy').format(p.fechaPago),
+        p.codigo,
+        'Bs. ${p.montoPago.toStringAsFixed(2)}',
+        'Bs. ${p.montoCapital.toStringAsFixed(2)}',
+        'Bs. ${p.montoInteres.toStringAsFixed(2)}',
+        'Bs. ${p.montoMora.toStringAsFixed(2)}',
+        'Bs. ${capitalRestante.toStringAsFixed(2)}',
+      ]);
+    }
 
     if (config.formato == FormatoReporte.pdf) {
       return await pdfService.generarPdfTabla(
         titulo: 'RESUMEN EJECUTIVO DE PRÉSTAMO',
-        subtitulo: 'Préstamo: ${prestamo.codigo} - Cliente: ${cliente.nombres} ${cliente.apellidos}',
-        headers: ['Fecha', 'Código Pago', 'Monto', 'Capital', 'Interés', 'Mora'],
-        rows: items.map<List<String>>((i) => [
-          DateFormat('dd/MM/yyyy').format(i.fechaPago),
-          i.codigo,
-          'Bs. ${i.montoPago.toStringAsFixed(2)}',
-          'Bs. ${i.montoCapital.toStringAsFixed(2)}',
-          'Bs. ${i.montoInteres.toStringAsFixed(2)}',
-          'Bs. ${i.montoMora.toStringAsFixed(2)}',
-        ]).toList(),
+        subtitulo: 'Préstamo: ${prestamo.codigo} - Cliente: ${cliente.nombres} ${cliente.apellidos}\n'
+                  'Monto Original: Bs. ${prestamo.montoOriginal.toStringAsFixed(2)} | '
+                  'Total Pagado: Bs. ${totalPagado.toStringAsFixed(2)} | '
+                  'Saldo Pendiente: Bs. ${prestamo.saldoPendiente.toStringAsFixed(2)}',
+        headers: ['Fecha', 'Código Pago', 'Monto', 'Capital', 'Interés', 'Mora', 'Saldo Cap.'],
+        rows: reportRows,
         nombreArchivo: 'Resumen_Prestamo_${prestamo.codigo}',
       );
     } else {
+      final items = pagos.map((p) => excel_svc.Pago(
+        codigo: p.codigo,
+        codigoPrestamo: prestamo.codigo,
+        nombreCliente: '${cliente.nombres} ${cliente.apellidos}',
+        montoPago: p.montoPago,
+        montoCapital: p.montoCapital,
+        montoInteres: p.montoInteres,
+        montoMora: p.montoMora,
+        fechaPago: p.fechaPago,
+        metodoPago: p.metodoPago,
+        observaciones: p.observaciones,
+        fechaRegistro: p.fechaRegistro,
+      )).toList();
       return await excelService.exportarPagos(items);
     }
   }
@@ -440,7 +576,57 @@ class ReportesLocalDataSource {
     // Filtrar pagados o cancelados
     final cancelados = prestamos.where((p) => p.estado == 'PAGADO' || p.estado == 'CANCELADO').toList();
 
-    return await excelService.exportarPrestamosCancelados(cancelados);
+    // Obtener pagos para calcular totales reales de Wilson
+    final prestamoIds = cancelados.map((p) => p.id).whereType<int>().toList();
+    final pagosMap = <int, double>{};
+    
+    if (prestamoIds.isNotEmpty) {
+      final pagos = await (database.select(database.pagos)
+            ..where((tbl) => tbl.prestamoId.isIn(prestamoIds)))
+          .get();
+      for (final pago in pagos) {
+        pagosMap[pago.prestamoId] = (pagosMap[pago.prestamoId] ?? 0) + pago.montoPago;
+      }
+    }
+
+    if (config.formato == FormatoReporte.pdf) {
+      double granTotalPagado = 0;
+      final rows = cancelados.map<List<String>>((p) {
+        final totalPagado = p.tipoInteres == 'WILSON' 
+            ? (pagosMap[p.id] ?? 0) 
+            : p.montoTotal;
+        granTotalPagado += totalPagado;
+        
+        return [
+          p.codigo,
+          p.nombreCliente ?? 'N/A',
+          'Bs. ${p.montoOriginal.toStringAsFixed(2)}',
+          'Bs. ${totalPagado.toStringAsFixed(2)}',
+          DateFormat('dd/MM/yy').format(p.fechaInicio),
+          DateFormat('dd/MM/yy').format(p.fechaVencimiento),
+        ];
+      }).toList();
+
+      // Añadir fila de total
+      rows.add([
+        'TOTAL',
+        '',
+        '',
+        'Bs. ${granTotalPagado.toStringAsFixed(2)}',
+        '',
+        '',
+      ]);
+
+      return await pdfService.generarPdfTabla(
+        titulo: 'REPORTE DE PRÉSTAMOS CANCELADOS',
+        subtitulo: 'Historial de préstamos pagados y cerrados en el periodo',
+        headers: ['Código', 'Cliente', 'Monto Orig.', 'Total Pagado', 'Inicio', 'Fin'],
+        rows: rows,
+        nombreArchivo: 'Prestamos_Cancelados',
+      );
+    } else {
+      return await excelService.exportarPrestamosCancelados(cancelados);
+    }
   }
 
   Future<String> generarReporteRendimiento(ConfiguracionReporte config) async {
@@ -463,7 +649,20 @@ class ReportesLocalDataSource {
       'Total Recaudado': capitalRecuperado + interesCobrado + moraCobrada,
     };
 
-    return await excelService.exportarRendimientoCartera(datos);
+    if (config.formato == FormatoReporte.pdf) {
+      return await pdfService.generarPdfTabla(
+        titulo: 'RENDIMIENTO DE CARTERA',
+        subtitulo: 'Resumen de ingresos financieros y recuperación de capital',
+        headers: ['Concepto', 'Monto'],
+        rows: datos.entries.map<List<String>>((e) => [
+          e.key,
+          'Bs. ${e.value.toStringAsFixed(2)}',
+        ]).toList(),
+        nombreArchivo: 'Rendimiento_Cartera',
+      );
+    } else {
+      return await excelService.exportarRendimientoCartera(datos);
+    }
   }
 
   // =========================================================================
@@ -1060,6 +1259,7 @@ class ReportesLocalDataSource {
       final caja = row.readTableOrNull(database.cajas);
 
       return excel_svc.Prestamo(
+        id: prestamo.id,
         codigo: prestamo.codigo,
         nombreCliente: cliente != null ? '${cliente.nombres} ${cliente.apellidos}' : null,
         nombreCaja: caja?.nombre,

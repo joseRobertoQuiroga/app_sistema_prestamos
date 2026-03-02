@@ -6,6 +6,9 @@ import '../../core/theme/app_theme.dart';
 import '../../config/router/app_router.dart';
 import '../../features/caja/presentation/providers/caja_provider.dart';
 import '../../features/dashboard/presentation/providers/dashboard_provider.dart';
+import '../../features/clientes/presentation/providers/cliente_provider.dart';
+import '../../features/prestamos/presentation/providers/prestamo_provider.dart';
+import '../../features/pagos/presentation/providers/pago_provider.dart';
 import '../../core/utils/formatters.dart';
 
 class AppDrawer extends ConsumerWidget {
@@ -147,9 +150,31 @@ class AppDrawer extends ConsumerWidget {
                 _buildDrawerItem(
                   context,
                   icon: Icons.refresh,
-                  title: 'Cargar Datos',
+                  title: 'Actualizar Sistema',
                   route: AppRouter.gestionDatos,
                   selected: location == AppRouter.gestionDatos,
+                  onTapOverride: () {
+                    Navigator.pop(context);
+                    // Invalidar todos los providers principales
+                    ref.invalidate(cajasListProvider);
+                    ref.invalidate(cajasActivasProvider);
+                    ref.invalidate(saldoTotalProvider);
+                    ref.invalidate(resumenGeneralProvider);
+                    ref.invalidate(movimientosGeneralesProvider);
+                    ref.invalidate(dashboardKPIsProvider);
+                    ref.invalidate(dashboardAlertasProvider);
+                    ref.invalidate(clientesProvider);
+                    ref.invalidate(clientesActivosProvider);
+                    ref.invalidate(prestamosListProvider);
+                    ref.invalidate(allPagosListProvider);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ Sistema actualizado correctamente'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
 
                 const Divider(height: 32),
@@ -229,6 +254,7 @@ class AppDrawer extends ConsumerWidget {
     required String title,
     required String route,
     required bool selected,
+    VoidCallback? onTapOverride,
   }) {
     final theme = Theme.of(context);
     
@@ -265,7 +291,7 @@ class AppDrawer extends ConsumerWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      onTap: () {
+      onTap: onTapOverride ?? () {
         Navigator.pop(context);
         Future.delayed(const Duration(milliseconds: 100), () {
           context.go(route);

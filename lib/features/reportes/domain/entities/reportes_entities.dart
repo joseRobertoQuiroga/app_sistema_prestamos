@@ -97,25 +97,26 @@ class ConfiguracionReporte extends Equatable {
     DateTime fin;
 
     if (tipo == TipoReporte.proyeccionCobros) {
-      // Para proyecciones miramos hacia adelante
-      inicio = ahora;
-      switch (periodo) {
-        case PeriodoReporte.ultimoMes:
-          fin = DateTime(ahora.year, ahora.month + 1, ahora.day);
-          break;
-        case PeriodoReporte.ultimoTrimestre:
-          fin = DateTime(ahora.year, ahora.month + 3, ahora.day);
-          break;
-        case PeriodoReporte.ultimoAnio:
-          fin = DateTime(ahora.year + 1, ahora.month, ahora.day);
-          break;
-        case PeriodoReporte.todoElTiempo:
-          fin = DateTime(ahora.year + 10, ahora.month, ahora.day); // 10 años futuro
-          break;
-        default:
-          fin = ahora.add(const Duration(days: 30));
-      }
-    } else {
+        // Para proyecciones miramos hacia adelante
+        inicio = DateTime(ahora.year, ahora.month, ahora.day, 0, 0, 0);
+        switch (periodo) {
+          case PeriodoReporte.ultimoMes:
+            fin = DateTime(ahora.year, ahora.month + 1, ahora.day, 23, 59, 59);
+            break;
+          case PeriodoReporte.ultimoTrimestre:
+            fin = DateTime(ahora.year, ahora.month + 3, ahora.day, 23, 59, 59);
+            break;
+          case PeriodoReporte.ultimoAnio:
+            fin = DateTime(ahora.year + 1, ahora.month, ahora.day, 23, 59, 59);
+            break;
+          case PeriodoReporte.todoElTiempo:
+            fin = DateTime(ahora.year + 10, ahora.month, ahora.day, 23, 59, 59); // 10 años futuro
+            break;
+          default:
+            fin = ahora.add(const Duration(days: 30));
+            fin = DateTime(fin.year, fin.month, fin.day, 23, 59, 59);
+        }
+      } else {
       // Para históricos miramos hacia atrás
       fin = ahora;
       switch (periodo) {

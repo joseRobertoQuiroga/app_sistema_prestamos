@@ -182,9 +182,12 @@ class ClienteDetailScreen extends ConsumerWidget {
                         title: 'UBICACIÓN',
                         icon: Icons.map_outlined,
                         items: [
-                          _buildInfoTile(context, Icons.location_on_outlined, 'Dirección', cliente.direccion ?? 'Sin especificar'),
-                          _buildInfoTile(context, Icons.location_city_rounded, 'Ciudad / Depto', '${cliente.ciudad ?? 'N/A'}, ${cliente.departamento ?? 'N/A'}'),
-                          if (cliente.referencia != null)
+                          _buildInfoTile(context, Icons.location_on_outlined, 'Dirección', cliente.direccion?.isNotEmpty == true ? cliente.direccion! : 'Sin especificar'),
+                          if (cliente.ciudad != null && cliente.ciudad!.isNotEmpty)
+                            _buildInfoTile(context, Icons.location_city_rounded, 'Ciudad', cliente.ciudad!),
+                          if (cliente.departamento != null && cliente.departamento!.isNotEmpty)
+                            _buildInfoTile(context, Icons.map_rounded, 'Departamento', cliente.departamento!),
+                          if (cliente.referencia != null && cliente.referencia!.isNotEmpty)
                             _buildInfoTile(context, Icons.near_me_outlined, 'Referencia', cliente.referencia!),
                         ],
                       ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),

@@ -16,6 +16,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../presentation/widgets/custom_text_field.dart';
 import '../../../../presentation/widgets/custom_button.dart';
+import '../../../../presentation/widgets/custom_transaction_dialog.dart';
 
 class PrestamoFormScreen extends ConsumerStatefulWidget {
   final int? prestamoId;
@@ -216,8 +217,8 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
         montoOriginal: double.parse(_montoController.text),
         montoTotal: _totalesCalculados!['montoTotal']!,
         saldoPendiente: widget.prestamoId != null 
-            ? _totalesCalculados!['montoTotal']! // TODO: Esto reinicia el saldo. Si hay pagos, no deberíamos permitir editar monto.
-            : _totalesCalculados!['montoTotal']!,
+            ? (_tipoInteres == TipoInteres.wilson ? double.parse(_montoController.text) : _totalesCalculados!['montoTotal']!)
+            : (_tipoInteres == TipoInteres.wilson ? double.parse(_montoController.text) : _totalesCalculados!['montoTotal']!),
         tasaInteres: double.parse(_tasaController.text),
         tipoInteres: _tipoInteres,
         plazoMeses: int.parse(_plazoController.text),
@@ -237,11 +238,24 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
         (f) { setState(() => _isLoading = false); _showError(f.message); },
         (_) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(widget.prestamoId != null ? 'Préstamo actualizado' : 'Préstamo creado con éxito'), 
-            backgroundColor: Colors.green
-          ));
-          Navigator.pop(context, true);
+          if (mounted) {
+            CustomTransactionDialog.show(
+              context: context,
+              type: TransactionType.loan,
+              title: widget.prestamoId != null ? 'Préstamo Actualizado' : 'Préstamo Creado',
+              data: {
+                'monto': double.parse(_montoController.text),
+                'cliente': 'Confirmado',
+                'caja': 'Confirmada',
+                'primeraCuota': Formatters.formatDate(DateTime(_fechaInicio.year, _fechaInicio.month + 1, _fechaInicio.day)),
+                'codigo': codigo,
+              },
+              onAccept: () {
+                Navigator.pop(context); // Cerrar diálogo
+                Navigator.pop(context, true); // Volver
+              },
+            );
+          }
         },
       );
     } catch (e) {

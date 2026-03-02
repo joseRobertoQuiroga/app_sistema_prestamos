@@ -1,0 +1,191 @@
+﻿flutter : Package 
+file_picker:linux 
+references 
+file_picker:linux as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+En línea: 1 Carácter: 1
++ flutter build 
+windows 2>&1 | 
+Out-File -FilePath 
+build_error_v4.txt -E 
+...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Package file_   
+ pi...implementatio    
+n.:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+Ask the maintainers of 
+file_picker to either 
+avoid referencing a 
+default implementation 
+via `platforms: linux: 
+default_package: 
+file_picker` or add an 
+inline implementation 
+to file_picker via 
+`platforms: linux:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:macos 
+references 
+file_picker:macos as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers of 
+file_picker to either 
+avoid referencing a 
+default implementation 
+via `platforms: macos: 
+default_package: 
+file_picker` or add an 
+inline implementation 
+to file_picker via 
+`platforms: macos:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:windows 
+references 
+file_picker:windows as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers of 
+file_picker to either 
+avoid referencing a 
+default implementation 
+via `platforms: 
+windows: 
+default_package: 
+file_picker` or add an 
+inline implementation 
+to file_picker via 
+`platforms: windows:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:linux 
+references 
+file_picker:linux as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers of 
+file_picker to either 
+avoid referencing a 
+default implementation 
+via `platforms: linux: 
+default_package: 
+file_picker` or add an 
+inline implementation 
+to file_picker via 
+`platforms: linux:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:macos 
+references 
+file_picker:macos as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers of 
+file_picker to either 
+avoid referencing a 
+default implementation 
+via `platforms: macos: 
+default_package: 
+file_picker` or add an 
+inline implementation 
+to file_picker via 
+`platforms: macos:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Package 
+file_picker:windows 
+references 
+file_picker:windows as 
+the default plugin, 
+but it does not 
+provide an inline 
+implementation.
+Ask the maintainers of 
+file_picker to either 
+avoid referencing a 
+default implementation 
+via `platforms: 
+windows: 
+default_package: 
+file_picker` or add an 
+inline implementation 
+to file_picker via 
+`platforms: windows:` 
+`pluginClass` or 
+`dartPluginClass`.
+
+Building Windows application...                                 
+lib/features/caja/prese
+ntation/screens/movimie
+ntos_generales_screen.d
+art(988,38): error 
+G8ED4A68B: Too many 
+positional arguments: 
+0 allowed, but 10 
+found. [C:\Users\Robert
+o\Desktop\PROYECTOS\sis
+tema prestamos\prestamo
+s_app - copia\build\win
+dows\x64\flutter\flutte
+r_assemble.vcxproj]
+C:\Program 
+Files\Microsoft Visual 
+Studio\18\Community\MSB
+uild\Microsoft\VC\v180\
+Microsoft.CppCommon.tar
+gets(254,5): error 
+MSB8066: Compilaci├│n 
+personalizada de "C:\Us
+ers\Roberto\Desktop\PRO
+YECTOS\sistema prestamo
+s\prestamos_app - copia
+\build\windows\x64\CMak
+eFiles\a4f4c69eda4d380b
+4ee9ed6b1d4c65f2\flutte
+r_windows.dll.rule;C:\U
+sers\Roberto\Desktop\PR
+OYECTOS\sistema prestam
+os\prestamos_app - copi
+a\build\windows\x64\CMa
+keFiles\49053479997941b
+95561a5e6d7d9a69d\flutt
+er_assemble.rule" 
+terminada con el 
+c├│digo 1. [C:\Users\Ro
+berto\Desktop\PROYECTOS
+\sistema prestamos\pres
+tamos_app - copia\build
+\windows\x64\flutter\fl
+utter_assemble.vcxproj]
+Building Windows application...                                    36,1s
+Build process failed.

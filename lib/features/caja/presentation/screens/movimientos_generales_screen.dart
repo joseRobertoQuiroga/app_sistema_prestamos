@@ -4,6 +4,11 @@ import 'package:intl/intl.dart';
 import '../../../../presentation/widgets/app_drawer.dart';
 import '../../../../core/utils/formatters.dart';
 import '../providers/caja_provider.dart';
+import '../../../pagos/presentation/providers/pago_provider.dart';
+import 'package:open_file/open_file.dart';
+import '../../../reportes/presentation/providers/reportes_provider.dart';
+import '../../../reportes/data/services/excel_service.dart' as excel_svc;
+import '../../domain/entities/movimiento.dart' as entity;
 
 /// Pantalla de Movimientos Generales del sistema (Rediseñada con Estética Premium)
 class MovimientosGeneralesScreen extends ConsumerStatefulWidget {
@@ -41,6 +46,60 @@ class _MovimientosGeneralesScreenState extends ConsumerState<MovimientosGenerale
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : const Color(0xFF1E293B)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.table_chart_rounded, color: Colors.green),
+            tooltip: 'Exportar a Excel',
+            onPressed: () {
+              final mAsync = ref.read(movimientosGeneralesProvider);
+              final cAsync = ref.read(cajasProvider);
+              mAsync.whenData((movimientos) {
+                var movimientosFiltrados = movimientos.where((m) {
+                  final enRango = m.fecha.isAfter(_fechaInicio.subtract(const Duration(days: 1))) &&
+                      m.fecha.isBefore(_fechaFin.add(const Duration(days: 1)));
+                  if (!enRango) return false;
+                  if (_cajaSeleccionada != null && m.cajaId != _cajaSeleccionada) return false;
+                  if (_tipoSeleccionado != 'TODOS') {
+                    if (_tipoSeleccionado == 'TRANSFERENCIA') {
+                      if (m.categoria != 'TRANSFERENCIA') return false;
+                    } else {
+                      if (m.tipo != _tipoSeleccionado) return false;
+                    }
+                  }
+                  if (_categoriaSeleccionada != null && m.categoria != _categoriaSeleccionada) return false;
+                  return true;
+                }).toList();
+                movimientosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
+                _exportarExcel(movimientosFiltrados, cAsync);
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent),
+            tooltip: 'Exportar a PDF',
+            onPressed: () {
+              final mAsync = ref.read(movimientosGeneralesProvider);
+              final cAsync = ref.read(cajasProvider);
+              mAsync.whenData((movimientos) {
+                var movimientosFiltrados = movimientos.where((m) {
+                  final enRango = m.fecha.isAfter(_fechaInicio.subtract(const Duration(days: 1))) &&
+                      m.fecha.isBefore(_fechaFin.add(const Duration(days: 1)));
+                  if (!enRango) return false;
+                  if (_cajaSeleccionada != null && m.cajaId != _cajaSeleccionada) return false;
+                  if (_tipoSeleccionado != 'TODOS') {
+                    if (_tipoSeleccionado == 'TRANSFERENCIA') {
+                      if (m.categoria != 'TRANSFERENCIA') return false;
+                    } else {
+                      if (m.tipo != _tipoSeleccionado) return false;
+                    }
+                  }
+                  if (_categoriaSeleccionada != null && m.categoria != _categoriaSeleccionada) return false;
+                  return true;
+                }).toList();
+                movimientosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
+                _exportarPDF(movimientosFiltrados, cAsync);
+              });
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(movimientosGeneralesProvider),
@@ -351,26 +410,33 @@ class _MovimientosGeneralesScreenState extends ConsumerState<MovimientosGenerale
             fontSize: 15,
           ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            children: [
-              cajasAsync.when(
-                data: (cajas) {
-                  try {
-                    final caja = cajas.firstWhere((c) => c.id == movimiento.cajaId);
-                    return _buildCardBadge(caja.nombre, isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9));
-                  } catch (_) {
-                    return _buildCardBadge('Desconocida', Colors.grey.withOpacity(0.2));
-                  }
-                },
-                loading: () => const SizedBox(width: 50, height: 10, child: LinearProgressIndicator()),
-                error: (_, __) => _buildCardBadge('N/A', Colors.red.withOpacity(0.1)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  cajasAsync.when(
+                    data: (cajas) {
+                      try {
+                        final caja = cajas.firstWhere((c) => c.id == movimiento.cajaId);
+                        return _buildCardBadge(caja.nombre, isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9));
+                      } catch (_) {
+                        return _buildCardBadge('Desconocida', Colors.grey.withOpacity(0.2));
+                      }
+                    },
+                    loading: () => const SizedBox(width: 50, height: 10, child: LinearProgressIndicator()),
+                    error: (_, __) => _buildCardBadge('N/A', Colors.red.withOpacity(0.1)),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildCardBadge(movimiento.categoria, typeColor.withOpacity(0.1), textColor: typeColor),
+                ],
               ),
-              const SizedBox(width: 8),
-              _buildCardBadge(movimiento.categoria, typeColor.withOpacity(0.1), textColor: typeColor),
-            ],
-          ),
+            ),
+            if (movimiento.categoria == 'PAGO' && movimiento.pagoId != null)
+              _buildPagoDetalleSub(movimiento.pagoId!),
+          ],
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -391,6 +457,68 @@ class _MovimientosGeneralesScreenState extends ConsumerState<MovimientosGenerale
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPagoDetalleSub(int pagoId) {
+    final pagosAsync = ref.watch(allPagosListProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return pagosAsync.when(
+      data: (pagos) {
+        try {
+          final pago = pagos.firstWhere((p) => p.id == pagoId);
+          return Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(height: 16),
+                Row(
+                  children: [
+                    _buildDetalleItem('Capital', pago.montoCapital, Colors.blue),
+                    const SizedBox(width: 12),
+                    _buildDetalleItem('Interés', pago.montoInteres, Colors.amber),
+                    if (pago.montoMora > 0) ...[
+                      const SizedBox(width: 12),
+                      _buildDetalleItem('Mora', pago.montoMora, Colors.red),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          );
+        } catch (_) {
+          return const SizedBox.shrink();
+        }
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildDetalleItem(String label, double monto, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            color: isDark ? Colors.white54 : Colors.black45,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          Formatters.formatCurrency(monto),
+          style: TextStyle(
+            fontSize: 11,
+            color: color.withOpacity(0.8),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 
@@ -790,6 +918,103 @@ class _MovimientosGeneralesScreenState extends ConsumerState<MovimientosGenerale
         );
       },
     );
+  }
+
+  Future<void> _exportarPDF(List<dynamic> movimientosFiltrados, AsyncValue<List<dynamic>> cajasAsync) async {
+    final pdfService = ref.read(pdfServiceProvider);
+    try {
+      final headers = ['FECHA', 'DESCRIPCIÓN', 'CATEGORÍA', 'CAJA', 'MONTO'];
+      final rows = <List<String>>[];
+      
+      final cajas = cajasAsync.valueOrNull ?? [];
+      
+      for (final mov in movimientosFiltrados) {
+        String nombreCaja = 'N/A';
+        try {
+          final caja = cajas.firstWhere((c) => c.id == mov.cajaId);
+          nombreCaja = caja.nombre;
+        } catch (_) {}
+        
+        final esIngreso = mov.tipo == 'INGRESO';
+        final signo = esIngreso ? '+' : '-';
+        
+        rows.add([
+          DateFormat('dd/MM/yyyy HH:mm').format(mov.fecha),
+          mov.descripcion,
+          mov.categoria,
+          nombreCaja,
+          '$signo ${Formatters.formatCurrency(mov.monto)}',
+        ]);
+      }
+
+      final path = await pdfService.generarPdfTabla(
+        titulo: 'Movimientos de Caja',
+        subtitulo: 'Del ${DateFormat('dd/MM/yyyy').format(_fechaInicio)} al ${DateFormat('dd/MM/yyyy').format(_fechaFin)} \nFiltros: ${_tipoSeleccionado} | ${_categoriaSeleccionada ?? 'Todas las cat.'}',
+        categoria: 'REPORTE FINANCIERO',
+        headers: headers,
+        rows: rows,
+        nombreArchivo: 'Movimientos_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF generado con ${movimientosFiltrados.length} movimientos'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(label: 'Abrir', onPressed: () => OpenFile.open(path), textColor: Colors.white),
+          )
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al generar PDF: $e')));
+      }
+    }
+  }
+
+  Future<void> _exportarExcel(List<dynamic> movimientosFiltrados, AsyncValue<List<dynamic>> cajasAsync) async {
+    final excelService = ref.read(excelServiceProvider);
+    try {
+      final list = <excel_svc.Movimiento>[];
+      final cajas = cajasAsync.valueOrNull ?? [];
+      
+      for (final mov in movimientosFiltrados) {
+        String nombreCaja = 'N/A';
+        try {
+          final caja = cajas.firstWhere((c) => c.id == mov.cajaId);
+          nombreCaja = caja.nombre;
+        } catch (_) {}
+        
+        list.add(excel_svc.Movimiento(
+          codigo: mov.codigo ?? '',
+          nombreCaja: nombreCaja,
+          tipo: mov.tipo,
+          categoria: mov.categoria,
+          monto: mov.monto,
+          saldoAnterior: mov.saldoAnterior ?? 0.0,
+          saldoNuevo: mov.saldoNuevo ?? 0.0,
+          descripcion: mov.descripcion,
+          fecha: mov.fecha,
+          fechaRegistro: mov.fechaRegistro,
+        ));
+      }
+
+      final path = await excelService.exportarMovimientos(list);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Excel generado con ${movimientosFiltrados.length} movimientos'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(label: 'Abrir', onPressed: () => OpenFile.open(path), textColor: Colors.white),
+          )
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al generar Excel: $e')));
+      }
+    }
   }
 
   Widget _buildFilterLabel(String text) {

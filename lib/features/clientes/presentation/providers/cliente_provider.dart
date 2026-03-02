@@ -59,19 +59,10 @@ final deleteClienteUseCaseProvider = Provider<DeleteCliente>((ref) {
   return DeleteCliente(repository);
 });
 
-// ✅ NUEVO: Provider para obtener clientes activos como AsyncValue
+// ✅ MEJORADO: Provider para obtener clientes activos (reactivo a clientesProvider)
 final clientesActivosProvider = FutureProvider<List<Cliente>>((ref) async {
-  final useCase = ref.watch(getClientesActivosUseCaseProvider);
-  final result = await useCase();
-  
-  return result.fold(
-    (failure) => throw Exception(failure.message),
-    (clientes) {
-      final sorted = List<Cliente>.from(clientes);
-      sorted.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
-      return sorted;
-    },
-  );
+  final state = ref.watch(clientesProvider);
+  return state.clientes.where((c) => c.activo).toList();
 });
 
 // Estado de la lista de clientes

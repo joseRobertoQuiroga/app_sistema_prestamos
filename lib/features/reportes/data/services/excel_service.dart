@@ -500,6 +500,25 @@ class ExcelService {
     return await _guardarArchivo(excel, 'Plantilla_Prestamos');
   }
 
+  /// Genera un Excel con una tabla genérica
+  Future<String> generarExcelGenerico({
+    required String titulo,
+    required List<String> headers,
+    required List<List<String>> rows,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel[excel.getDefaultSheet()!];
+    
+    _addHeaders(sheet, headers);
+    
+    for (final row in rows) {
+      sheet.appendRow(row.map((cell) => TextCellValue(cell)).toList());
+    }
+    
+    _autoFitColumns(sheet, headers.length);
+    return await _guardarArchivo(excel, titulo.replaceAll(' ', '_'));
+  }
+
   // =========================================================================
   // MÉTODOS DE AYUDA
   // =========================================================================
@@ -590,6 +609,7 @@ class Cliente {
 
 /// Clase auxiliar para representar un préstamo en exportación
 class Prestamo {
+  final int? id; // ✅ Agregado id para búsquedas
   final String codigo;
   final String? nombreCliente;
   final String? nombreCaja;
@@ -603,9 +623,11 @@ class Prestamo {
   final DateTime fechaInicio;
   final DateTime fechaVencimiento;
   final String estado;
+  final String? observaciones;
   final DateTime fechaRegistro;
 
   Prestamo({
+    this.id,
     required this.codigo,
     this.nombreCliente,
     this.nombreCaja,
@@ -619,6 +641,7 @@ class Prestamo {
     required this.fechaInicio,
     required this.fechaVencimiento,
     required this.estado,
+    this.observaciones,
     required this.fechaRegistro,
   });
 }

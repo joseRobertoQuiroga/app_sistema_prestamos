@@ -19,6 +19,7 @@ import '../../../clientes/domain/entities/cliente.dart';
 
 import '../../../prestamos/domain/entities/prestamo.dart';
 import '../../../pagos/presentation/providers/pago_provider.dart';
+import '../../../../presentation/widgets/custom_transaction_dialog.dart';
 
 enum TipoMovimiento { ingreso, egreso, transferencia }
 enum SubTipoEgreso { simple, prestamo }
@@ -66,6 +67,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
   String? _prestamoCodigoPago;
   double? _saldoPagoPendiente;
   bool _esAbonoCapitalPago = false;
+  bool _esCobroInteresPago = false;
 
   @override
   void initState() {
@@ -203,6 +205,10 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         ref.invalidate(movimientosGeneralesProvider);
         ref.invalidate(dashboardKPIsProvider);
         ref.invalidate(dashboardAlertasProvider);
+        // Siempre refresca clientes y préstamos para que aparezcan recién creados
+        ref.invalidate(clientesActivosProvider);
+        ref.invalidate(clientesProvider);
+        ref.invalidate(prestamosListProvider);
         // Si fue pago de préstamo, refrescar providers del préstamo
         if (_tipoMovimiento == TipoMovimiento.ingreso &&
             _subTipoIngreso == SubTipoIngreso.pagoPrestamo &&
@@ -212,13 +218,10 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
           ref.invalidate(prestamoDetailProvider(_prestamoIdPago!));
           ref.invalidate(cuotasListProvider(_prestamoIdPago!));
           ref.invalidate(resumenCuotasProvider(_prestamoIdPago!));
-          ref.invalidate(prestamosListProvider);
         }
         
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Movimiento registrado con éxito'), backgroundColor: Colors.green),
-        );
+        // El diálogo se muestra dentro de cada método de registro o aquí
         _limpiarFormulario();
       }
     } catch (e) {
@@ -238,7 +241,24 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       descripcion: _descripcionController.text.isNotEmpty ? _descripcionController.text : _motivoController.text,
       fecha: _fecha,
     );
-    result.fold((l) => throw Exception(l.message), (r) {});
+    result.fold(
+      (l) => throw Exception(l.message), 
+      (r) {
+        if (mounted) {
+          CustomTransactionDialog.show(
+            context: context,
+            type: TransactionType.income,
+            title: 'Ingreso Registrado',
+            data: {
+              'monto': monto,
+              'categoria': _categoria ?? 'INGRESO',
+              'caja': 'Caja Destino', // Podríamos buscar el nombre si fuera necesario
+              'descripcion': _descripcionController.text.isNotEmpty ? _descripcionController.text : _motivoController.text,
+            }
+          );
+        }
+      }
+    );
   }
 
   Future<void> _registrarEgresoSimple(double monto) async {
@@ -251,7 +271,24 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       fecha: _fecha,
       referencia: _motivoController.text.isNotEmpty ? _motivoController.text : null,
     );
-    result.fold((l) => throw Exception(l.message), (r) {});
+    result.fold(
+      (l) => throw Exception(l.message), 
+      (r) {
+        if (mounted) {
+          CustomTransactionDialog.show(
+            context: context,
+            type: TransactionType.expense,
+            title: 'Egreso Registrado',
+            data: {
+              'monto': monto,
+              'categoria': _categoria ?? 'GASTO',
+              'caja': 'Caja Origen',
+              'descripcion': _descripcionController.text,
+            }
+          );
+        }
+      }
+    );
   }
 
   Future<void> _registrarTransferencia(double monto) async {
@@ -263,7 +300,24 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       descripcion: _motivoController.text,
       fecha: _fecha,
     );
-    result.fold((l) => throw Exception(l.message), (r) {});
+    result.fold(
+      (l) => throw Exception(l.message), 
+      (r) {
+        if (mounted) {
+          CustomTransactionDialog.show(
+            context: context,
+            type: TransactionType.transfer,
+            title: 'Transferencia Exitosa',
+            data: {
+              'monto': monto,
+              'origen': 'Caja Origen',
+              'destino': 'Caja Destino',
+              'descripcion': _motivoController.text,
+            }
+          );
+        }
+      }
+    );
   }
 
   Future<void> _registrarPrestamo(double monto) async {
@@ -310,7 +364,22 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         );
         egresoResult.fold(
           (l) => throw Exception('Préstamo creado pero falló el desembolso: ${l.message}'), 
-          (r) {}
+          (r) {
+            if (mounted) {
+              CustomTransactionDialog.show(
+                context: context,
+                type: TransactionType.loan,
+                title: 'Préstamo Aperturado',
+                data: {
+                  'monto': monto,
+                  'cliente': 'Cliente Seleccionado',
+                  'caja': 'Caja Origen',
+                  'primeraCuota': Formatters.formatDate(DateTime(_fecha.year, _fecha.month + 1, _fecha.day)),
+                  'codigo': p.codigo,
+                }
+              );
+            }
+          }
         );
       }
     );
@@ -333,6 +402,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       _prestamoCodigoPago = null;
       _saldoPagoPendiente = null;
       _esAbonoCapitalPago = false;
+      _esCobroInteresPago = false;
       _subTipoIngreso = SubTipoIngreso.simple;
     });
   }
@@ -349,8 +419,29 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       referencia: _motivoController.text.isNotEmpty ? _motivoController.text : null,
       observaciones: _descripcionController.text.isNotEmpty ? _descripcionController.text : null,
       esAbonoCapital: _esAbonoCapitalPago,
+      esCobroInteres: _esCobroInteresPago,
     );
-    result.fold((l) => throw Exception(l.message), (r) {});
+    result.fold(
+      (l) => throw Exception(l.message), 
+      (resultado) {
+        if (mounted) {
+          CustomTransactionDialog.show(
+            context: context,
+            type: TransactionType.payment,
+            title: 'Pago Registrado',
+            data: {
+              'montoAplicado': resultado.montoAplicado,
+              'mora': resultado.totalMora,
+              'interes': resultado.totalInteres,
+              'capital': resultado.totalCapital,
+              'periodo': resultado.periodoAfectado ?? 'No definido',
+              'totalPagos': resultado.totalPagosRealizados,
+              'restante': resultado.montoRestante,
+            }
+          );
+        }
+      }
+    );
   }
   
   Future<void> _agregarNuevaCategoria() async {
@@ -1430,13 +1521,23 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         clientesAsync.when(
           data: (clientes) => DropdownButtonFormField<int>(
             value: _clienteIdPago,
-            onChanged: (v) => setState(() {
-              _clienteIdPago = v;
-              // Reset préstamo al cambiar cliente
-              _prestamoIdPago = null;
-              _prestamoCodigoPago = null;
-              _saldoPagoPendiente = null;
-            }),
+            onChanged: (v) {
+              if (_clienteIdPago != v) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _clienteIdPago = v;
+                      // Reset préstamo al cambiar cliente
+                      _prestamoIdPago = null;
+                      _prestamoCodigoPago = null;
+                      _saldoPagoPendiente = null;
+                      _esAbonoCapitalPago = false;
+                      _esCobroInteresPago = false;
+                    });
+                  }
+                });
+              }
+            },
             dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.person_outline, size: 20, color: Color(0xFF94A3B8)),
@@ -1486,10 +1587,14 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                   value: _prestamoIdPago,
                   onChanged: (v) {
                     final p = prestamos.firstWhere((p) => p.id == v);
-                    setState(() {
-                      _prestamoIdPago = v;
-                      _prestamoCodigoPago = p.codigo;
-                      _saldoPagoPendiente = p.saldoPendiente;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _prestamoIdPago = v;
+                          _prestamoCodigoPago = p.codigo;
+                          _saldoPagoPendiente = p.saldoPendiente;
+                        });
+                      }
                     });
                   },
                   dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
@@ -1534,13 +1639,19 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
       ),
-      child: SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text('Abono directo a Capital', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 14, fontWeight: FontWeight.w500)),
-        subtitle: Text('Omite mora e interés — todo va al capital', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
-        value: _esAbonoCapitalPago,
-        onChanged: (v) => setState(() => _esAbonoCapitalPago = v),
-        activeColor: const Color(0xFF8B5CF6),
+      child: Column(
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Abono directo a Capital', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 14, fontWeight: FontWeight.w500)),
+            subtitle: Text('Omite mora e interés — todo va al capital', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+            value: _esAbonoCapitalPago,
+            onChanged: (v) => setState(() {
+              _esAbonoCapitalPago = v;
+            }),
+            activeColor: const Color(0xFF8B5CF6),
+          ),
+        ],
       ),
     );
   }

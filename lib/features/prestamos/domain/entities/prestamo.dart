@@ -47,13 +47,22 @@ class Prestamo extends Equatable {
 
   // Calcular porcentaje pagado
   double get porcentajePagado {
-    if (montoTotal == 0) return 0;
-    return ((montoTotal - saldoPendiente) / montoTotal) * 100;
+    if (tipoInteres == TipoInteres.wilson) {
+      if (montoOriginal == 0) return 0;
+      return ((montoOriginal - saldoPendiente) / montoOriginal) * 100;
+    } else {
+      if (montoTotal == 0) return 0;
+      return ((montoTotal - saldoPendiente) / montoTotal) * 100;
+    }
   }
 
   // Calcular monto pagado
   double get montoPagado {
-    return montoTotal - saldoPendiente;
+    if (tipoInteres == TipoInteres.wilson) {
+      return montoOriginal - saldoPendiente;
+    } else {
+      return montoTotal - saldoPendiente;
+    }
   }
 
   // Verificar si está en mora

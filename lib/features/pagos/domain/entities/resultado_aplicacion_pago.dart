@@ -15,6 +15,8 @@ class ResultadoAplicacionPago extends Equatable {
   final List<DetallePago> detalles;
   final List<int> cuotasPagadas; // IDs de cuotas que quedaron totalmente pagadas
   final String mensaje;
+  final int totalPagosRealizados; // NUEVO: Total de pagos en el historial del préstamo
+  final String? periodoAfectado; // NUEVO: Rango de fechas de las cuotas cubiertas
 
   const ResultadoAplicacionPago({
     required this.montoOriginal,
@@ -26,6 +28,8 @@ class ResultadoAplicacionPago extends Equatable {
     required this.detalles,
     required this.cuotasPagadas,
     required this.mensaje,
+    this.totalPagosRealizados = 0,
+    this.periodoAfectado,
   });
 
   /// Verifica si el pago se aplicó completamente
@@ -63,6 +67,8 @@ Cuotas pagadas completas: ${cuotasPagadas.length}
         detalles,
         cuotasPagadas,
         mensaje,
+        totalPagosRealizados,
+        periodoAfectado,
       ];
 
   @override

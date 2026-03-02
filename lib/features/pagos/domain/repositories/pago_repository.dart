@@ -15,7 +15,8 @@ abstract class PagoRepository {
     String? metodoPago,
     String? referencia,
     String? observaciones,
-    bool esAbonoCapital = false, // Nuevo parámetro
+    bool esAbonoCapital = false,
+    bool esCobroInteres = false, // Nuevo parámetro
   });
 
   /// Obtiene todos los pagos

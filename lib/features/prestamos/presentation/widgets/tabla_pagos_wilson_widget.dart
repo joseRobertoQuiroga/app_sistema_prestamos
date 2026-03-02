@@ -257,12 +257,17 @@ class TablaPagosWilsonWidget extends StatelessWidget {
         // Reducir saldo para siguiente iteración
         final capitalPagado = pagoMes - moraMes - interesMes;
         if (capitalPagado > 0) saldo = saldo - capitalPagado;
-      } else if (fechaCuota.isBefore(hoy)) {
-        estado = 'MORA';
-      } else if (fechaCuota.month == hoy.month && fechaCuota.year == hoy.year) {
-        estado = 'PENDIENTE';
       } else {
-        estado = 'FUTURO';
+        // En lugar de comparar si "mes < hoy", validamos si pasó un mes desde inicio
+        final fechaVencimiento = DateTime(fechaCuota.year, fechaCuota.month + 1, fechaCuota.day);
+        
+        if (fechaVencimiento.isBefore(hoy) || fechaVencimiento.isAtSameMomentAs(hoy)) {
+          estado = 'MORA';
+        } else if (hoy.isAfter(fechaCuota) && hoy.isBefore(fechaVencimiento)) {
+          estado = 'PENDIENTE';
+        } else {
+          estado = 'FUTURO';
+        }
       }
 
       filas.add({

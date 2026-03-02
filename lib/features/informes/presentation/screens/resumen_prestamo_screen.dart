@@ -20,6 +20,24 @@ class ResumenPrestamoScreen extends ConsumerStatefulWidget {
 class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
   int? _prestamoSeleccionadoId;
 
+  void _mostrarSelectorPrestamoYRefrescar(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => SelectorPrestamoWidget(
+        onPrestamoSeleccionado: (prestamoId) {
+          setState(() {
+            _prestamoSeleccionadoId = prestamoId;
+          });
+          // Forzar recarga de datos frescos
+          ref.invalidate(prestamosListProvider);
+          ref.invalidate(allPagosListProvider);
+          ref.invalidate(cuotasListProvider(prestamoId));
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -43,7 +61,7 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => _mostrarSelectorPrestamo(context),
+              onPressed: () => _mostrarSelectorPrestamoYRefrescar(context),
               icon: const Icon(Icons.search),
               label: const Text('Buscar Préstamo'),
               style: ElevatedButton.styleFrom(
@@ -128,9 +146,19 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
                             ),
                             ElevatedButton.icon(
                               onPressed: () =>
-                                  _mostrarSelectorPrestamo(context),
+                                  _mostrarSelectorPrestamoYRefrescar(context),
                               icon: const Icon(Icons.swap_horiz, size: 18),
                               label: const Text('Cambiar'),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.refresh),
+                              tooltip: 'Actualizar datos',
+                              onPressed: () {
+                                ref.invalidate(prestamosListProvider);
+                                ref.invalidate(allPagosListProvider);
+                                ref.invalidate(cuotasListProvider(_prestamoSeleccionadoId!));
+                              },
                             ),
                           ],
                         ),
@@ -219,6 +247,8 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
                       Text(cliente.nombreCompleto),
                       Text('Cédula: ${cliente.ci}',
                           style: theme.textTheme.bodySmall),
+                      if (cliente.telefono != null && cliente.telefono!.isNotEmpty)
+                        Text('Tel: ${cliente.telefono}', style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -233,11 +263,23 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text('Código: ${prestamo.codigo ?? "N/A"}'),
-                      Text(
-                        'Tasa: ${prestamo.tasaInteres}% ${prestamo.tipoInteres.toString().split('.').last}',
-                      ),
+                      Text('Código: ${prestamo.codigo}'),
+                      Text('Tasa: ${prestamo.tasaInteres}% ${prestamo.tipoInteres.toString().split('.').last}'),
                       Text('Plazo: ${prestamo.plazoMeses} meses'),
+                      Text('Inicio: ${prestamo.fechaInicio.day}/${prestamo.fechaInicio.month}/${prestamo.fechaInicio.year}'),
+                      Text('Vencimiento: ${prestamo.fechaVencimiento.day}/${prestamo.fechaVencimiento.month}/${prestamo.fechaVencimiento.year}'),
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: prestamo.enMora ? Colors.red.withOpacity(0.15) : Colors.green.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          prestamo.estado.displayName,
+                          style: TextStyle(color: prestamo.enMora ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -252,6 +294,7 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
   Widget _buildResumenFinanciero(dynamic prestamo, ThemeData theme) {
     final saldoPendiente = prestamo.saldoPendiente ?? 0.0;
     final porcentajePagado = prestamo.porcentajePagado ?? 0.0;
+    final totalInteres = (prestamo.montoTotal ?? 0.0) - (prestamo.montoOriginal ?? 0.0);
 
     return Card(
       child: Padding(
@@ -288,6 +331,19 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: InfoCard(
+                    titulo: 'Total Interés',
+                    valor: 'Bs. ${totalInteres.toStringAsFixed(2)}',
+                    icono: Icons.percent,
+                    color: Colors.purple,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InfoCard(
                     titulo: 'Pagado',
                     valor: 'Bs. ${prestamo.montoPagado.toStringAsFixed(2)}',
                     icono: Icons.check_circle,
@@ -301,6 +357,15 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
                     valor: 'Bs. ${saldoPendiente.toStringAsFixed(2)}',
                     icono: Icons.pending,
                     color: Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InfoCard(
+                    titulo: 'Cuota Mensual',
+                    valor: 'Bs. ${prestamo.cuotaMensual.toStringAsFixed(2)}',
+                    icono: Icons.calendar_today,
+                    color: Colors.teal,
                   ),
                 ),
               ],
@@ -438,16 +503,6 @@ class _ResumenPrestamoScreenState extends ConsumerState<ResumenPrestamoScreen> {
   }
 
   void _mostrarSelectorPrestamo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => SelectorPrestamoWidget(
-        onPrestamoSeleccionado: (prestamoId) {
-          setState(() {
-            _prestamoSeleccionadoId = prestamoId;
-          });
-          Navigator.pop(context);
-        },
-      ),
-    );
+    _mostrarSelectorPrestamoYRefrescar(context);
   }
 }

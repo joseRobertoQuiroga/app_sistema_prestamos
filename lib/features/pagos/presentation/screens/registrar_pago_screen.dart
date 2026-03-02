@@ -6,6 +6,7 @@ import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../prestamos/presentation/providers/prestamo_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../presentation/widgets/custom_transaction_dialog.dart';
 
 /// Pantalla para registrar un nuevo pago
 class RegistrarPagoScreen extends ConsumerStatefulWidget {
@@ -35,6 +36,16 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
   int? _cajaId;
   bool _isLoading = false;
   bool _esAbonoCapital = false; // Estado para el nuevo switch
+  bool _esCobroInteres = false; // Estado para Cobro de Interés anticipado
+
+  @override
+  void initState() {
+    super.initState();
+    // Forzar recarga de cajas activas para que el dropdown de caja destino siempre esté actualizado
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(cajasActivasProvider);
+    });
+  }
 
   @override
   void dispose() {
@@ -65,6 +76,7 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
           ? null 
           : _observacionesController.text.trim(),
       esAbonoCapital: _esAbonoCapital, // Pasar valor del switch
+      esCobroInteres: _esCobroInteres, // Pasar valor del cobro interés
     );
 
     setState(() => _isLoading = false);
@@ -103,49 +115,23 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
   }
 
   void _mostrarResultado(dynamic resultado) {
-    showDialog(
+    CustomTransactionDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Pago Registrado'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Monto aplicado: ${Formatters.formatCurrency(resultado.montoAplicado)}'),
-            const SizedBox(height: 8),
-            Text('Distribución:', style: Theme.of(context).textTheme.titleSmall),
-            Text('• Mora: ${Formatters.formatCurrency(resultado.totalMora)}'),
-            Text('• Interés: ${Formatters.formatCurrency(resultado.totalInteres)}'),
-            Text('• Capital: ${Formatters.formatCurrency(resultado.totalCapital)}'),
-            const SizedBox(height: 8),
-            Text('Cuotas afectadas: ${resultado.cuotasAfectadas}'),
-            Text('Cuotas pagadas: ${resultado.cuotasPagadas.length}'),
-            if (resultado.montoRestante > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Sobrante: ${Formatters.formatCurrency(resultado.montoRestante)}',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context); // Cerrar diálogo
-              Navigator.pop(context, true); // Volver con resultado
-            },
-            child: const Text('Aceptar'),
-          ),
-        ],
-      ),
+      type: TransactionType.payment,
+      title: 'Pago Registrado',
+      data: {
+        'montoAplicado': resultado.montoAplicado,
+        'mora': resultado.totalMora,
+        'interes': resultado.totalInteres,
+        'capital': resultado.totalCapital,
+        'periodo': resultado.periodoAfectado ?? 'No definido',
+        'totalPagos': resultado.totalPagosRealizados,
+        'restante': resultado.montoRestante,
+      },
+      onAccept: () {
+        Navigator.pop(context); // Cerrar diálogo
+        Navigator.pop(context, true); // Volver con resultado
+      },
     );
   }
 
@@ -217,13 +203,78 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
             ),
             const SizedBox(height: 16),
             
+            // Selector de Caja Destino Obligatorio
+            Consumer(
+              builder: (context, ref, child) {
+                final cajasAsync = ref.watch(cajasActivasProvider);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Caja Destino (donde ingresa el dinero) *',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    cajasAsync.when(
+                      data: (cajas) {
+                        if (cajas.isEmpty) return const Text('No hay cajas activas');
+                        // Asignar primera caja por defecto si es nulo
+                        if (_cajaId == null && cajas.isNotEmpty) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) setState(() => _cajaId = cajas.first.id);
+                          });
+                        }
+                        return DropdownButtonFormField<int>(
+                          value: _cajaId ?? (cajas.isNotEmpty ? cajas.first.id : null),
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.account_balance_outlined),
+                          ),
+                          items: cajas.map((c) => DropdownMenuItem(
+                            value: c.id, 
+                            child: Text(c.nombre)
+                          )).toList(),
+                          onChanged: (v) => setState(() => _cajaId = v),
+                          validator: (v) => v == null ? 'Seleccione una caja' : null,
+                        );
+                      },
+                      loading: () => const LinearProgressIndicator(),
+                      error: (err, _) => Text('Error al cargar cajas: $err'),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            
             // Switch Abono a Capital (Nuevo)
             SwitchListTile(
               title: const Text('Abono directo a Capital'),
               subtitle: const Text('No cobra interés en este pago, reduce saldo directamente.'),
               value: _esAbonoCapital,
-              onChanged: (val) => setState(() => _esAbonoCapital = val),
+              onChanged: (val) {
+                setState(() {
+                  _esAbonoCapital = val;
+                  if (val) _esCobroInteres = false;
+                });
+              },
               secondary: const Icon(Icons.savings_outlined),
+            ),
+            const Divider(),
+            // Switch Cobro a Interés (Nuevo)
+            SwitchListTile(
+              title: const Text('Cobrar Interés (Anticipado / Manual)'),
+              subtitle: const Text('Omite el capital. Todo el dinero ingresado cubre solo la porción de intereses.'),
+              value: _esCobroInteres,
+              onChanged: (val) {
+                setState(() {
+                  _esCobroInteres = val;
+                  if (val) _esAbonoCapital = false;
+                });
+              },
+              secondary: const Icon(Icons.percent_outlined),
             ),
             const SizedBox(height: 16),
 

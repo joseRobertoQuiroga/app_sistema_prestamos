@@ -389,11 +389,11 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
         List<String> columns;
         if (_selectedReport == TipoReporte.moraDetallada) {
-          columns = const ['CLIENTE', 'PRÉSTAMO', 'VENCIMIENTO', 'SALDO PEND.', 'ESTADO'];
+          columns = const ['CLIENTE', 'PRÉSTAMO', 'VENCIMIENTO', 'DÍAS MORA', 'SALDO PEND.', 'TASA', 'CUOTA', 'ESTADO'];
         } else if (_selectedReport == TipoReporte.prestamosCancelados) {
-          columns = const ['CLIENTE', 'PRÉSTAMO', 'MONTO ORIG.', 'TOTAL PAGADO', 'ESTADO'];
+          columns = const ['CLIENTE', 'PRÉSTAMO', 'MONTO ORIG.', 'TOTAL PAGADO', 'FECHA INICIO', 'PLAZO', 'ESTADO'];
         } else {
-          columns = const ['CLIENTE', 'ID', 'MONTO', 'SALDO', 'ESTADO', 'VENCIMIENTO'];
+          columns = const ['CLIENTE', 'ID', 'MONTO', 'SALDO', 'TASA', 'CUOTA', 'ESTADO', 'VENCIMIENTO'];
         }
 
         return _buildScrollableTable(
@@ -402,11 +402,15 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
           rows: filtered.map((p) {
             List<DataCell> cells;
             if (_selectedReport == TipoReporte.moraDetallada) {
+              final diasMora = DateTime.now().difference(p.fechaVencimiento).inDays.clamp(0, 9999);
               cells = [
                 DataCell(Text(p.nombreCliente ?? 'N/A')),
                 DataCell(Text(p.codigo)),
                 DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaVencimiento), style: const TextStyle(color: Colors.red))),
+                DataCell(Text('$diasMora días', style: TextStyle(color: diasMora > 30 ? Colors.red : Colors.orange, fontWeight: FontWeight.bold))),
                 DataCell(Text('Bs. ${p.saldoPendiente.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+                DataCell(Text('${p.tasaInteres}%')),
+                DataCell(Text('Bs. ${p.cuotaMensual.toStringAsFixed(2)}')),
                 DataCell(_buildStatusBadge(p.estado.displayName)),
               ];
             } else if (_selectedReport == TipoReporte.prestamosCancelados) {
@@ -415,6 +419,8 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
                 DataCell(Text(p.codigo)),
                 DataCell(Text('Bs. ${p.montoOriginal.toStringAsFixed(2)}')),
                 DataCell(Text('Bs. ${p.montoTotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))),
+                DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaInicio))),
+                DataCell(Text('${p.plazoMeses} meses')),
                 DataCell(_buildStatusBadge(p.estado.displayName)),
               ];
             } else {
@@ -423,8 +429,10 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
                 DataCell(Text(p.codigo)),
                 DataCell(Text('Bs. ${p.montoOriginal.toStringAsFixed(2)}')),
                 DataCell(Text('Bs. ${p.saldoPendiente.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                DataCell(Text('${p.tasaInteres}%')),
+                DataCell(Text('Bs. ${p.cuotaMensual.toStringAsFixed(2)}')),
                 DataCell(_buildStatusBadge(p.estado.displayName)),
-                DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaInicio))),
+                DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaVencimiento))),
               ];
             }
             return DataRow(cells: cells);
@@ -600,15 +608,14 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
 
   Widget _buildProyeccionTable() {
     final prestamosAsync = ref.watch(prestamosListProvider);
-    final periodo = ref.watch(periodoSeleccionadoProvider);
 
     return prestamosAsync.when(
       data: (prestamos) {
-        var prestamosVivos = prestamos.where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora).toList();
-        final rango = _getRangoPeriodo(periodo);
-        prestamosVivos = prestamosVivos.where((p) =>
-          p.fechaVencimiento.isAfter(rango.start) && p.fechaVencimiento.isBefore(rango.end)
-        ).toList();
+        // Mostrar todos los préstamos activos/mora, ordenados por vencimiento más próximo primero
+        var prestamosVivos = prestamos
+            .where((p) => p.estado == EstadoPrestamo.activo || p.estado == EstadoPrestamo.mora)
+            .toList()
+          ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
 
         if (_searchQuery.isNotEmpty) {
           prestamosVivos = prestamosVivos.where((p) =>
@@ -618,22 +625,31 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
         }
 
         return _buildScrollableTable(
-          columns: const ['CLIENTE', 'PRÉSTAMO', 'CUOTA MENSUAL', 'TASA', 'VENCIMIENTO', 'ACCIONES'],
+          columns: const ['CLIENTE', 'PRÉSTAMO', 'CUOTA', 'TASA', 'VENCIMIENTO', 'DÍAS RESTANTES', 'ESTADO'],
           totalRows: prestamosVivos.length,
-          rows: prestamosVivos.map((p) => DataRow(cells: [
-            DataCell(Text(p.nombreCliente ?? 'N/A')),
-            DataCell(Text(p.codigo)),
-            DataCell(Text('Bs. ${p.cuotaMensual.toStringAsFixed(2)}')),
-            DataCell(Text('${p.tasaInteres}%')),
-            DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaVencimiento))),
-            DataCell(IconButton(icon: const Icon(Icons.info_outline, size: 18), onPressed: () {
-              setState(() {
-                _selectedReport = TipoReporte.resumenPrestamo;
-                _selectedId = p.id;
-                _selectedEntityName = p.codigo;
-              });
-            })),
-          ])).toList(),
+          rows: prestamosVivos.map((p) {
+            final diasRestantes = p.fechaVencimiento.difference(DateTime.now()).inDays;
+            final Color diasColor = diasRestantes < 0
+                ? Colors.red.shade700
+                : diasRestantes < 30
+                    ? Colors.red
+                    : diasRestantes < 60
+                        ? Colors.orange
+                        : Colors.green;
+            final String diasText = diasRestantes < 0
+                ? '${diasRestantes.abs()} días vencido'
+                : '$diasRestantes días';
+
+            return DataRow(cells: [
+              DataCell(Text(p.nombreCliente ?? 'N/A')),
+              DataCell(Text(p.codigo)),
+              DataCell(Text('Bs. ${p.cuotaMensual.toStringAsFixed(2)}')),
+              DataCell(Text('${p.tasaInteres}%')),
+              DataCell(Text(DateFormat('dd/MM/yyyy').format(p.fechaVencimiento))),
+              DataCell(Text(diasText, style: TextStyle(color: diasColor, fontWeight: FontWeight.bold))),
+              DataCell(_buildStatusBadge(p.estado.displayName)),
+            ]);
+          }).toList(),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),

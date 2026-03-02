@@ -206,8 +206,39 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
+    // Directorio por defecto (Documentos del usuario)
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'prestamos_db.sqlite'));
+    File file = File(p.join(dbFolder.path, 'prestamos_db.sqlite'));
+
+    // Lógica para Portabilidad (Solo en Windows)
+    if (Platform.isWindows) {
+      try {
+        // Obtener la ruta del ejecutable
+        final exePath = Platform.resolvedExecutable;
+        final exeDirectory = p.dirname(exePath);
+        
+        // Definir carpeta de datos junto al ejecutable
+        final portableDataDir = Directory(p.join(exeDirectory, 'data'));
+        
+        // Si estamos ejecutando desde el build o si el usuario quiere portabilidad
+        // Priorizamos la carpeta 'data' local si existe o si estamos en Release
+        final localFile = File(p.join(portableDataDir.path, 'prestamos_db.sqlite'));
+        
+        // Si ya existe la base de datos localmente, usar esa (Portátil)
+        if (await localFile.exists()) {
+          file = localFile;
+        } else {
+          // Si no existe pero la carpeta 'data' sí existe, intentamos crearla ahí
+          if (await portableDataDir.exists()) {
+            file = localFile;
+          }
+        }
+      } catch (e) {
+        print('Error detectando ruta portátil: $e');
+        // Fallback al directorio de documentos ya configurado arriba
+      }
+    }
+
     return NativeDatabase.createInBackground(file);
   });
 }

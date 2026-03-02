@@ -42,71 +42,80 @@ class PdfService {
     required double tasaMorosidad,
     required DateTime fechaInicio,
     required DateTime fechaFin,
+    required List<PrestamoCartera> prestamos,
   }) async {
     final pdf = pw.Document();
     final reportId = 'RPT-CAR-${DateFormat('yyyyMMdd').format(DateTime.now())}';
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.letter,
         margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 28),
         build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              _buildHeaderPremium(
-                categoria: 'REPORTE FINANCIERO',
-                titulo: 'Cartera Activa y Mora',
-                subtitulo: 'Estado general de préstamos activos, pendientes y en mora',
-                reportId: reportId,
-                fechaInicio: fechaInicio,
-                fechaFin: fechaFin,
-              ),
-              pw.SizedBox(height: 20),
+          return [
+            _buildHeaderPremium(
+              categoria: 'REPORTE FINANCIERO',
+              titulo: 'Cartera Activa y Mora',
+              subtitulo: 'Estado general de préstamos activos, pendientes y en mora',
+              reportId: reportId,
+              fechaInicio: fechaInicio,
+              fechaFin: fechaFin,
+            ),
+            pw.SizedBox(height: 20),
 
-              // KPI Cards Row
-              pw.Row(
-                children: [
-                  pw.Expanded(child: _buildKpiCard(
-                    label: 'TOTAL PRÉSTAMOS',
-                    value: totalPrestamos.toString(),
-                    subValue: '$prestamosActivos activos · $prestamosPagados pagados',
-                    accentColor: _azulMedio,
-                  )),
-                  pw.SizedBox(width: 12),
-                  pw.Expanded(child: _buildKpiCard(
-                    label: 'CARTERA TOTAL',
-                    value: _currencyFormat.format(carteraTotal),
-                    subValue: 'Capital por cobrar: ${_currencyFormat.format(capitalPorCobrar)}',
-                    accentColor: _verdeOscuro,
-                  )),
-                  pw.SizedBox(width: 12),
-                  pw.Expanded(child: _buildKpiCard(
-                    label: 'TASA DE MORA',
-                    value: '${tasaMorosidad.toStringAsFixed(1)}%',
-                    subValue: tasaMorosidad > 5 ? '⚠ Alto Riesgo' : prestamosEnMora > 0 ? '$prestamosEnMora préstamos en mora' : 'Sin mora detectada',
-                    accentColor: tasaMorosidad > 5 ? _rojoOscuro : tasaMorosidad > 2 ? _naranjaOscuro : _verdeOscuro,
-                    highlight: tasaMorosidad > 5,
-                  )),
-                ],
-              ),
-              pw.SizedBox(height: 20),
+            // KPI Cards Row
+            pw.Row(
+              children: [
+                pw.Expanded(child: _buildKpiCard(
+                  label: 'TOTAL PRÉSTAMOS',
+                  value: totalPrestamos.toString(),
+                  subValue: '$prestamosActivos activos · $prestamosPagados pagados',
+                  accentColor: _azulMedio,
+                )),
+                pw.SizedBox(width: 12),
+                pw.Expanded(child: _buildKpiCard(
+                  label: 'CARTERA TOTAL',
+                  value: _currencyFormat.format(carteraTotal),
+                  subValue: 'Capital por cobrar: ${_currencyFormat.format(capitalPorCobrar)}',
+                  accentColor: _verdeOscuro,
+                )),
+                pw.SizedBox(width: 12),
+                pw.Expanded(child: _buildKpiCard(
+                  label: 'TASA DE MORA',
+                  value: '${tasaMorosidad.toStringAsFixed(1)}%',
+                  subValue: tasaMorosidad > 5 ? '⚠ Alto Riesgo' : prestamosEnMora > 0 ? '$prestamosEnMora préstamos en mora' : 'Sin mora detectada',
+                  accentColor: tasaMorosidad > 5 ? _rojoOscuro : tasaMorosidad > 2 ? _naranjaOscuro : _verdeOscuro,
+                  highlight: tasaMorosidad > 5,
+                )),
+              ],
+            ),
+            pw.SizedBox(height: 20),
 
-              // Desglose
-              _buildSectionTitle('DESGLOSE DE ESTADOS'),
-              pw.SizedBox(height: 8),
-              pw.Row(
-                children: [
-                  pw.Expanded(child: _buildStatRow('Préstamos Activos', prestamosActivos.toString(), _azulMedio)),
-                  pw.Expanded(child: _buildStatRow('En Mora', prestamosEnMora.toString(), _rojoOscuro)),
-                  pw.Expanded(child: _buildStatRow('Cancelados', prestamosPagados.toString(), _verdeOscuro)),
-                ],
-              ),
+            // Desglose
+            _buildSectionTitle('DESGLOSE DE ESTADOS'),
+            pw.SizedBox(height: 8),
+            pw.Row(
+              children: [
+                pw.Expanded(child: _buildStatRow('Préstamos Activos', prestamosActivos.toString(), _azulMedio)),
+                pw.Expanded(child: _buildStatRow('En Mora', prestamosEnMora.toString(), _rojoOscuro)),
+                pw.Expanded(child: _buildStatRow('Cancelados', prestamosPagados.toString(), _verdeOscuro)),
+              ],
+            ),
+            pw.SizedBox(height: 20),
 
-              pw.Spacer(),
-              _buildFooterPremium(),
-            ],
-          );
+            // Tabla de préstamos
+            _buildSectionTitle('DETALLE DE CARTERA ACTIVA'),
+            pw.SizedBox(height: 8),
+            if (prestamos.isNotEmpty) _buildTablaCartera(prestamos)
+            else pw.Container(
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Center(child: pw.Text('No hay préstamos activos o en mora para mostrar.',
+                  style: const pw.TextStyle(fontSize: 10, color: _grisTexto))),
+            ),
+
+            pw.SizedBox(height: 16),
+            _buildFooterPremium(),
+          ];
         },
       ),
     );
@@ -664,17 +673,18 @@ class PdfService {
             pw.SizedBox(height: 16),
 
             if (items.isNotEmpty) ...[
-              _buildSectionTitle('DETALLE DE CUOTAS PROYECTADAS'),
+              _buildSectionTitle('DETALLE DE CUOTAS PRÓXIMAS'),
               pw.SizedBox(height: 6),
               pw.Table(
                 border: pw.TableBorder.all(color: _grisLinea, width: 0.5),
                 columnWidths: const {
-                  0: pw.FixedColumnWidth(70),
+                  0: pw.FixedColumnWidth(65),
                   1: pw.FlexColumnWidth(2.5),
-                  2: pw.FlexColumnWidth(2),
-                  3: pw.FixedColumnWidth(45),
+                  2: pw.FlexColumnWidth(1.5),
+                  3: pw.FixedColumnWidth(55),
                   4: pw.FlexColumnWidth(2),
                   5: pw.FlexColumnWidth(2),
+                  6: pw.FlexColumnWidth(1.5),
                 },
                 children: [
                   pw.TableRow(
@@ -683,25 +693,26 @@ class PdfService {
                       _buildCeldaHeader('VENCIMIENTO'),
                       _buildCeldaHeader('CLIENTE'),
                       _buildCeldaHeader('PRÉSTAMO'),
-                      _buildCeldaHeader('CUOTA #'),
+                      _buildCeldaHeader('DÍAS FALT.'),
                       _buildCeldaHeader('MONTO CUOTA'),
-                      _buildCeldaHeader('MORA EST.'),
+                      _buildCeldaHeader('ESTADO MORA'),
+                      _buildCeldaHeader('DÍAS MORA'),
                     ],
                   ),
                   ...items.asMap().entries.map((entry) {
                     final i = entry.key;
                     final c = entry.value;
-                    final vencio = c.fechaVencimiento.isBefore(DateTime.now());
+                    final isMora = c.enMora;
                     return pw.TableRow(
                       decoration: pw.BoxDecoration(color: i.isEven ? _blanco : _grisFila),
                       children: [
-                        _buildCelda(_dateFormat.format(c.fechaVencimiento), color: vencio ? _rojoOscuro : null),
+                        _buildCelda(_dateFormat.format(c.fechaVencimiento), color: isMora ? _rojoOscuro : null),
                         _buildCelda(c.nombreCliente),
                         _buildCelda(c.codigoPrestamo),
-                        _buildCelda(c.numeroCuota.toString()),
+                        _buildCelda(c.diasFaltantes.toString(), textAlign: pw.TextAlign.center, bold: !isMora, color: isMora ? _grisTexto : null),
                         _buildCelda(_currencyFormat.format(c.montoCuota), bold: true),
-                        _buildCelda(c.moraEstimada > 0 ? _currencyFormat.format(c.moraEstimada) : '-',
-                            color: c.moraEstimada > 0 ? _rojoOscuro : null),
+                        _buildCelda(isMora ? 'EN MORA' : 'AL DÍA', color: isMora ? _rojoOscuro : _verdeOscuro, bold: isMora),
+                        _buildCelda(c.diasMora > 0 ? '${c.diasMora} días' : '-', textAlign: pw.TextAlign.center, color: c.diasMora > 0 ? _rojoOscuro : null),
                       ],
                     );
                   }),
@@ -1090,12 +1101,18 @@ class PdfService {
     );
   }
 
-  /// Celda de datos con soporte de color y negrita
-  pw.Widget _buildCelda(String texto, {bool bold = false, double fontSize = 8.5, PdfColor? color}) {
+  /// Celda de datos con soporte de color, negrita y alineación
+  pw.Widget _buildCelda(String texto, {
+    bool bold = false, 
+    double fontSize = 8.5, 
+    PdfColor? color,
+    pw.TextAlign? textAlign,
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       child: pw.Text(
         texto,
+        textAlign: textAlign,
         style: pw.TextStyle(
           fontSize: fontSize,
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
@@ -1177,6 +1194,47 @@ class PdfService {
 
     return filePath;
   }
+
+  /// Construye tabla de cartera para el reporte
+  pw.Widget _buildTablaCartera(List<PrestamoCartera> prestamos) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: _grisLinea, width: 0.5),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(1.2), // Código
+        1: pw.FlexColumnWidth(2.5), // Cliente
+        2: pw.FlexColumnWidth(1.5), // Monto Orig
+        3: pw.FlexColumnWidth(1.5), // Saldo Pend
+        4: pw.FlexColumnWidth(1.2), // Estado
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: _azulOscuro),
+          children: [
+            _buildCeldaHeader('CÓDIGO'),
+            _buildCeldaHeader('CLIENTE'),
+            _buildCeldaHeader('MONTO ORIG.'),
+            _buildCeldaHeader('SALDO PEND.'),
+            _buildCeldaHeader('MONTO CANCELADO'),
+          ],
+        ),
+        ...prestamos.map((p) {
+          return pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _blanco),
+            children: [
+              _buildCelda(p.codigo),
+              _buildCelda(p.nombreCliente),
+              _buildCelda(_currencyFormat.format(p.montoOriginal), textAlign: pw.TextAlign.right),
+              _buildCelda(_currencyFormat.format(p.saldoPendiente), 
+                  textAlign: pw.TextAlign.right, 
+                  bold: true,
+                  color: p.saldoPendiente > 0 ? _rojoOscuro : _verdeOscuro),
+              _buildCelda(_currencyFormat.format(p.montoPagado), textAlign: pw.TextAlign.right, bold: true, color: _verdeOscuro),
+            ],
+          );
+        }),
+      ],
+    );
+  }
 }
 
 // =========================================================================
@@ -1251,7 +1309,9 @@ class ProyeccionItem {
   final String codigoPrestamo;
   final int numeroCuota;
   final double montoCuota;
-  final double moraEstimada;
+  final int diasFaltantes;
+  final bool enMora;
+  final int diasMora;
 
   ProyeccionItem({
     required this.fechaVencimiento,
@@ -1259,6 +1319,24 @@ class ProyeccionItem {
     required this.codigoPrestamo,
     required this.numeroCuota,
     required this.montoCuota,
-    required this.moraEstimada,
+    required this.diasFaltantes,
+    required this.enMora,
+    required this.diasMora,
+  });
+}
+
+class PrestamoCartera {
+  final String codigo;
+  final String nombreCliente;
+  final double montoOriginal;
+  final double saldoPendiente;
+  final double montoPagado;
+
+  PrestamoCartera({
+    required this.codigo,
+    required this.nombreCliente,
+    required this.montoOriginal,
+    required this.saldoPendiente,
+    required this.montoPagado,
   });
 }
