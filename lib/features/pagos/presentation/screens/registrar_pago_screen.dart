@@ -315,28 +315,47 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
             const SizedBox(height: 24),
 
             // Botones
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _isLoading ? null : () => Navigator.pop(context),
-                    child: const Text('Cancelar'),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 400;
+                
+                final buttons = [
+                  Expanded(
+                    flex: isNarrow ? 0 : 1,
+                    child: OutlinedButton(
+                      onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text('Cancelar'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _isLoading ? null : _registrarPago,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Registrar Pago'),
+                  SizedBox(
+                    width: isNarrow ? 0 : 16,
+                    height: isNarrow ? 12 : 0,
                   ),
-                ),
-              ],
+                  Expanded(
+                    flex: isNarrow ? 0 : 1,
+                    child: FilledButton(
+                      onPressed: _isLoading ? null : _registrarPago,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Registrar Pago'),
+                    ),
+                  ),
+                ];
+
+                return isNarrow 
+                    ? Column(children: buttons) 
+                    : Row(children: buttons);
+              },
             ),
           ],
         ),

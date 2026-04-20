@@ -7,6 +7,8 @@ import 'prestamo_detail_screen.dart';
 import '../../../../presentation/widgets/app_drawer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/responsive_layout.dart';
+import '../widgets/prestamo_card_mobile.dart';
 import '../../domain/entities/prestamo.dart';
 
 class PrestamosListScreen extends ConsumerWidget {
@@ -40,20 +42,23 @@ class PrestamosListScreen extends ConsumerWidget {
         ],
       ),
       drawer: const AppDrawer(),
-      body: dashboardAsync.when(
-        data: (data) => Row(
-          children: [
-            // SIDEBAR
-            _buildSidebar(context, ref, data.stats, estadoFiltro, isDark),
+      body: ResponsiveLayout(
+        mobile: _buildMobileContent(context, ref, dashboardAsync, isDark),
+        desktop: dashboardAsync.when(
+          data: (data) => Row(
+            children: [
+              // SIDEBAR
+              _buildSidebar(context, ref, data.stats, estadoFiltro, isDark),
 
-            // MAIN CONTENT
-            Expanded(
-              child: _buildMainContent(context, ref, data.items, isDark),
-            ),
-          ],
+              // MAIN CONTENT
+              Expanded(
+                child: _buildMainContent(context, ref, data.items, isDark),
+              ),
+            ],
+          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, s) => Center(child: Text('Error: $e')),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error: $e')),
       ),
     );
   }
@@ -427,5 +432,152 @@ class PrestamosListScreen extends ConsumerWidget {
       context,
       MaterialPageRoute(builder: (_) => PrestamoDetailScreen(prestamoId: id)),
     ).then((_) => ref.read(prestamosListProvider.notifier).refresh());
+  }
+
+  Widget _buildMobileContent(
+    BuildContext context, 
+    WidgetRef ref, 
+    AsyncValue<({List<Prestamo> items, PrestamosDashboardStats stats})> dashboardAsync,
+    bool isDark,
+  ) {
+    return dashboardAsync.when(
+      data: (data) => Column(
+        children: [
+          _buildMobileStatsHeader(data.stats, isDark),
+          _buildMobileSearchHeader(ref, isDark),
+          _buildMobileFilterChips(ref, isDark),
+          Expanded(
+            child: data.items.isEmpty
+                ? const Center(child: Text('No hay préstamos'))
+                : ListView.builder(
+                    itemCount: data.items.length,
+                    itemBuilder: (context, index) {
+                      final prestamo = data.items[index];
+                      return PrestamoCardMobile(
+                        prestamo: prestamo,
+                        onTap: () {},
+                        onDetail: () => _navigateToDetail(context, ref, prestamo.id!),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error: $e')),
+    );
+  }
+
+  Widget _buildMobileStatsHeader(PrestamosDashboardStats stats, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppTheme.primaryBrand,
+      child: Row(
+        children: [
+          _MobileStatItem(
+            label: 'Total Prestado',
+            value: Formatters.formatCurrency(stats.totalPrestado),
+          ),
+          Container(width: 1, height: 30, color: Colors.white24, margin: const EdgeInsets.symmetric(horizontal: 16)),
+          _MobileStatItem(
+            label: 'En Mora',
+            value: Formatters.formatCurrency(stats.moraTotal),
+            valueColor: Colors.orangeAccent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileSearchHeader(WidgetRef ref, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      color: AppTheme.primaryBrand,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: TextField(
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: const InputDecoration(
+            hintText: 'Buscar...',
+            hintStyle: TextStyle(color: Colors.white60),
+            prefixIcon: Icon(Icons.search, color: Colors.white60, size: 18),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 10),
+          ),
+          onChanged: (query) {
+            if (query.isEmpty) {
+              ref.read(prestamosListProvider.notifier).refresh();
+            } else {
+              ref.read(prestamosListProvider.notifier).search(query);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileFilterChips(WidgetRef ref, bool isDark) {
+    final currentEstado = ref.watch(estadoFiltroProvider);
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          _FilterChip(label: 'Todos', isSelected: currentEstado == null, onSelected: () => ref.read(estadoFiltroProvider.notifier).state = null),
+          const SizedBox(width: 8),
+          _FilterChip(label: 'Activo', isSelected: currentEstado == EstadoPrestamo.activo, onSelected: () => ref.read(estadoFiltroProvider.notifier).state = EstadoPrestamo.activo),
+          const SizedBox(width: 8),
+          _FilterChip(label: 'En Mora', isSelected: currentEstado == EstadoPrestamo.mora, onSelected: () => ref.read(estadoFiltroProvider.notifier).state = EstadoPrestamo.mora),
+          const SizedBox(width: 8),
+          _FilterChip(label: 'Pagado', isSelected: currentEstado == EstadoPrestamo.pagado, onSelected: () => ref.read(estadoFiltroProvider.notifier).state = EstadoPrestamo.pagado),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileStatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _MobileStatItem({required this.label, required this.value, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 10)),
+        Text(value, style: TextStyle(color: valueColor ?? Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onSelected;
+
+  const _FilterChip({required this.label, required this.isSelected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.grey)),
+      selected: isSelected,
+      onSelected: (_) => onSelected(),
+      selectedColor: AppTheme.primaryBrand,
+      backgroundColor: Colors.transparent,
+      shape: StadiumBorder(side: BorderSide(color: isSelected ? AppTheme.primaryBrand : Colors.grey.shade300)),
+      showCheckmark: false,
+    );
   }
 }

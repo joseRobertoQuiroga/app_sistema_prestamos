@@ -20,9 +20,10 @@ class AppDrawer extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final isDarkMode = themeMode == ThemeMode.dark;
 
-    return Drawer(
-      child: Column(
-        children: [
+    return RepaintBoundary(
+      child: Drawer(
+        child: Column(
+          children: [
           // Header con gradiente
           Container(
             width: double.infinity,
@@ -190,7 +191,8 @@ class AppDrawer extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildThemeToggle(BuildContext context, WidgetRef ref, bool isDarkMode) {
@@ -292,9 +294,16 @@ class AppDrawer extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       onTap: onTapOverride ?? () {
+        if (selected) {
+          Navigator.pop(context);
+          return;
+        }
+        
         Navigator.pop(context);
-        Future.delayed(const Duration(milliseconds: 100), () {
-          context.go(route);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            context.go(route);
+          }
         });
       },
     );

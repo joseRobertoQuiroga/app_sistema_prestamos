@@ -6,16 +6,34 @@ import 'core/providers/theme_provider.dart';
 import 'config/router/app_router.dart';
 
 void main() async {
+  final startTime = DateTime.now();
+  debugPrint('🚀 Starting App Initialization...');
+  
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('⏱️ Flutter Binding Initialized: ${DateTime.now().difference(startTime).inMilliseconds}ms');
   
-  // Inicializar datos de localización para español
-  await initializeDateFormatting('es', null);
-  
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  // Capturar errores de Flutter
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('❌ Flutter Error: ${details.exception}');
+  };
+
+  try {
+    // Inicializar datos de localización para español
+    debugPrint('⏳ Initializing Date Formatting...');
+    await initializeDateFormatting('es', null);
+    debugPrint('⏱️ Date Formatting Initialized: ${DateTime.now().difference(startTime).inMilliseconds}ms');
+    
+    debugPrint('🏁 RunApp started at: ${DateTime.now().difference(startTime).inMilliseconds}ms');
+    runApp(
+      const ProviderScope(
+        child: MyApp(),
+      ),
+    );
+  } catch (e, stack) {
+    debugPrint('❌ Critical Error during startup: $e');
+    debugPrint(stack.toString());
+  }
 }
 
 class MyApp extends ConsumerWidget {

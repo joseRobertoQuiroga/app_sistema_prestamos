@@ -266,3 +266,32 @@ class AppTheme {
     );
   }
 }
+
+/// Helper para obtener colores consistentes según el modo actual
+class AppColors {
+  static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
+
+  static Color background(BuildContext context) => 
+      isDark(context) ? AppTheme.darkBackground : AppTheme.lightBackground;
+      
+  static Color surface(BuildContext context) => 
+      isDark(context) ? AppTheme.darkSurface : AppTheme.lightSurface;
+      
+  static Color cardBg(BuildContext context) => 
+      isDark(context) ? AppTheme.darkCard : AppTheme.lightCard;
+      
+  static Color border(BuildContext context) => 
+      isDark(context) ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0);
+      
+  static Color textPrimary(BuildContext context) => 
+      isDark(context) ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight;
+      
+  static Color textSecondary(BuildContext context) => 
+      isDark(context) ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight;
+      
+  static Color primaryOverlay(BuildContext context) =>
+      isDark(context) ? AppTheme.primaryBrand.withOpacity(0.2) : AppTheme.primaryLight.withOpacity(0.1);
+      
+  static Color inputFill(BuildContext context) => 
+      isDark(context) ? const Color(0xFF0F111A) : Colors.white;
+}

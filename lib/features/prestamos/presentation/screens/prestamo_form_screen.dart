@@ -329,30 +329,57 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
                                     validator: (v) => Validators.amount(v),
                                   ),
                                   const SizedBox(height: 16),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: CustomTextField(
-                                          controller: _tasaController,
-                                          label: _tipoInteres == TipoInteres.wilson 
-                                              ? 'Tasa/Mes (%)' 
-                                              : 'Tasa/Año (%)',
-                                          keyboardType: TextInputType.number,
-                                          prefixIcon: Icons.percent_rounded,
-                                          validator: (v) => Validators.interestRate(v),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: CustomTextField(
-                                          controller: _plazoController,
-                                          label: 'Plazo (Meses)',
-                                          keyboardType: TextInputType.number,
-                                          prefixIcon: Icons.calendar_month_rounded,
-                                          validator: (v) => Validators.termMonths(v),
-                                        ),
-                                      ),
-                                    ],
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      if (constraints.maxWidth < 400) {
+                                        return Column(
+                                          children: [
+                                            CustomTextField(
+                                              controller: _tasaController,
+                                              label: _tipoInteres == TipoInteres.wilson 
+                                                  ? 'Tasa/Mes (%)' 
+                                                  : 'Tasa/Año (%)',
+                                              keyboardType: TextInputType.number,
+                                              prefixIcon: Icons.percent_rounded,
+                                              validator: (v) => Validators.interestRate(v),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            CustomTextField(
+                                              controller: _plazoController,
+                                              label: 'Plazo (Meses)',
+                                              keyboardType: TextInputType.number,
+                                              prefixIcon: Icons.calendar_month_rounded,
+                                              validator: (v) => Validators.termMonths(v),
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                      return Row(
+                                        children: [
+                                          Expanded(
+                                            child: CustomTextField(
+                                              controller: _tasaController,
+                                              label: _tipoInteres == TipoInteres.wilson 
+                                                  ? 'Tasa/Mes (%)' 
+                                                  : 'Tasa/Año (%)',
+                                              keyboardType: TextInputType.number,
+                                              prefixIcon: Icons.percent_rounded,
+                                              validator: (v) => Validators.interestRate(v),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: CustomTextField(
+                                              controller: _plazoController,
+                                              label: 'Plazo (Meses)',
+                                              keyboardType: TextInputType.number,
+                                              prefixIcon: Icons.calendar_month_rounded,
+                                              validator: (v) => Validators.termMonths(v),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                   const SizedBox(height: 16),
                                   _buildTipoInteresSelector(),
@@ -539,33 +566,47 @@ class _PrestamoFormScreenState extends ConsumerState<PrestamoFormScreen> {
       children: [
         const Text('Tipo de Amortización', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            _buildRadioOption('Simple', TipoInteres.simple),
-            const SizedBox(width: 8),
-            _buildRadioOption('Compuesto', TipoInteres.compuesto),
-            const SizedBox(width: 8),
-            _buildRadioOption('Wilson', TipoInteres.wilson),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildRadioOption('Simple', TipoInteres.simple, constraints.maxWidth),
+                _buildRadioOption('Compuesto', TipoInteres.compuesto, constraints.maxWidth),
+                _buildRadioOption('Wilson', TipoInteres.wilson, constraints.maxWidth),
+              ],
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildRadioOption(String label, TipoInteres value) {
+  Widget _buildRadioOption(String label, TipoInteres value, double maxWidth) {
     bool isSelected = _tipoInteres == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () { setState(() => _tipoInteres = value); _calcularVistaPrevia(); },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryBrand.withOpacity(0.1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? AppTheme.primaryBrand : Colors.grey.withOpacity(0.3)),
+    final itemWidth = (maxWidth - 16) / 3;
+    
+    return GestureDetector(
+      onTap: () { setState(() => _tipoInteres = value); _calcularVistaPrevia(); },
+      child: Container(
+        width: itemWidth > 80 ? itemWidth : null,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryBrand.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? AppTheme.primaryBrand : Colors.grey.withOpacity(0.3)),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label, 
+          style: TextStyle(
+            fontSize: 10, 
+            fontWeight: FontWeight.w900, 
+            color: isSelected ? AppTheme.primaryBrand : Colors.grey
           ),
-          alignment: Alignment.center,
-          child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: isSelected ? AppTheme.primaryBrand : Colors.grey)),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

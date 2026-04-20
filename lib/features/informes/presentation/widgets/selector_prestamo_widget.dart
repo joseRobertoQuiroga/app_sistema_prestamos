@@ -31,8 +31,8 @@ class _SelectorPrestamoWidgetState
 
     return Dialog(
       child: Container(
-        width: 600,
         padding: const EdgeInsets.all(16),
+        constraints: const BoxConstraints(maxWidth: 600),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

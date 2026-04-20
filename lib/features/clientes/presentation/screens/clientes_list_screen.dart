@@ -8,6 +8,8 @@ import 'cliente_detail_screen.dart';
 import '../../../../presentation/widgets/app_drawer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/responsive_layout.dart';
+import '../widgets/cliente_card_mobile.dart';
 
 class ClientesListScreen extends ConsumerWidget {
   const ClientesListScreen({super.key});
@@ -50,19 +52,30 @@ class ClientesListScreen extends ConsumerWidget {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
-        children: [
-          // Barra de Búsqueda y Filtros
-          _buildFilterBar(context, ref, isDark),
+      body: ResponsiveLayout(
+        mobile: Column(
+          children: [
+            _buildMobileFilterBar(context, ref, isDark),
+            Expanded(
+              child: _buildMobileDashboardBody(context, ref, dashboardAsync, isDark),
+            ),
+            _buildMobileFooter(context, ref, dashboardAsync, isDark),
+          ],
+        ),
+        desktop: Column(
+          children: [
+            // Barra de Búsqueda y Filtros
+            _buildFilterBar(context, ref, isDark),
 
-          // Cuerpo con la tabla
-          Expanded(
-            child: _buildDashboardBody(context, ref, dashboardAsync, isDark),
-          ),
+            // Cuerpo con la tabla
+            Expanded(
+              child: _buildDashboardBody(context, ref, dashboardAsync, isDark),
+            ),
 
-          // Footer / Paginación
-          _buildFooter(context, ref, dashboardAsync, isDark),
-        ],
+            // Footer / Paginación
+            _buildFooter(context, ref, dashboardAsync, isDark),
+          ],
+        ),
       ),
     );
   }
@@ -375,5 +388,135 @@ class ClientesListScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  Widget _buildMobileFilterBar(BuildContext context, WidgetRef ref, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF262A40) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade300),
+            ),
+            child: TextField(
+              onChanged: (value) => ref.read(clientesProvider.notifier).searchClientes(value),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Buscar...',
+                hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
+                prefixIcon: Icon(Icons.search, color: isDark ? Colors.white38 : Colors.grey),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF262A40) : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: 'Todos los Estados',
+                      isExpanded: true,
+                      dropdownColor: isDark ? const Color(0xFF262A40) : Colors.white,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 12),
+                      items: ['Todos los Estados', 'Mora', 'Activo', 'Inactivo']
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .toList(),
+                      onChanged: (_) {},
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => _navigateToForm(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF818CF8),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Icon(Icons.person_add_outlined, size: 20),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDashboardBody(
+    BuildContext context, 
+    WidgetRef ref, 
+    AsyncValue<({List<ClienteDashboardModel> items, int totalItems, int totalPages, int currentPage})> dashboardAsync,
+    bool isDark,
+  ) {
+    return dashboardAsync.when(
+      data: (data) {
+        if (data.items.isEmpty) {
+          return const Center(child: Text('No hay clientes vinculados'));
+        }
+
+        return ListView.builder(
+          itemCount: data.items.length,
+          itemBuilder: (context, index) {
+            final item = data.items[index];
+            return ClienteCardMobile(
+              item: item,
+              onTap: () => _navigateToDetail(context, item.cliente.id!),
+              onEdit: () => _navigateToForm(context, clienteId: item.cliente.id),
+              onDelete: () => _showDeleteDialog(context, ref, item.cliente.id!, item.cliente.nombre),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error: $e')),
+    );
+  }
+
+  Widget _buildMobileFooter(
+    BuildContext context, 
+    WidgetRef ref,
+    AsyncValue<({List<ClienteDashboardModel> items, int totalItems, int totalPages, int currentPage})> dashboardAsync, 
+    bool isDark,
+  ) {
+    return dashboardAsync.when(
+      data: (data) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: Icon(Icons.chevron_left, color: data.currentPage > 1 ? (isDark ? Colors.white70 : Colors.black87) : Colors.white24),
+              onPressed: data.currentPage > 1 ? () => ref.read(clientesProvider.notifier).setPage(data.currentPage - 1) : null,
+            ),
+            Text(
+              'Pág ${data.currentPage} de ${data.totalPages}',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              icon: Icon(Icons.chevron_right, color: data.currentPage < data.totalPages ? (isDark ? Colors.white70 : Colors.black87) : Colors.white24),
+              onPressed: data.currentPage < data.totalPages ? () => ref.read(clientesProvider.notifier).setPage(data.currentPage + 1) : null,
+            ),
+          ],
+        ),
+      ),
+      loading: () => const SizedBox(),
+      error: (_, __) => const SizedBox(),
+    );
   }
 }

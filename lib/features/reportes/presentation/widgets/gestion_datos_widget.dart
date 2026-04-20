@@ -4,6 +4,7 @@ import 'package:open_file/open_file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:dartz/dartz.dart' hide OpenFile;
+import '../../../../core/utils/responsive_layout.dart';
 import '../../../../core/errors/failures.dart';
 import '../providers/reportes_provider.dart';
 import '../../domain/entities/reportes_entities.dart';
@@ -40,20 +41,29 @@ class GestionDatosWidget extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Contenido principal en dos columnas
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Columna izquierda: Exportación
-                Expanded(
-                  child: _buildSeccionExportacion(context, ref, exportando),
-                ),
-                const SizedBox(width: 24),
-                // Columna derecha: Importación
-                Expanded(
-                  child: _buildSeccionImportacion(context, ref, importando),
-                ),
-              ],
+            // Contenido principal: Dos columnas en escritorio, una en móvil
+            ResponsiveLayout(
+              mobile: Column(
+                children: [
+                  _buildSeccionExportacion(context, ref, exportando),
+                  const SizedBox(height: 32),
+                  _buildSeccionImportacion(context, ref, importando),
+                ],
+              ),
+              desktop: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Columna izquierda: Exportación
+                  Expanded(
+                    child: _buildSeccionExportacion(context, ref, exportando),
+                  ),
+                  const SizedBox(width: 24),
+                  // Columna derecha: Importación
+                  Expanded(
+                    child: _buildSeccionImportacion(context, ref, importando),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

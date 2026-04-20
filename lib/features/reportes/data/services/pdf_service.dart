@@ -1182,17 +1182,24 @@ class PdfService {
     );
   }
 
-  /// Guarda el PDF y retorna la ruta
+  /// Guarda el documento PDF en el almacenamiento y retorna la ruta
   Future<String> _guardarPdf(pw.Document pdf, String nombreBase) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-    final fileName = '${nombreBase}_$timestamp.pdf';
-    final filePath = '${directory.path}/$fileName';
+    try {
+      print('PDF_SERVICE: Iniciando guardado de $nombreBase');
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final fileName = '${nombreBase}_$timestamp.pdf';
+      final filePath = '${directory.path}/$fileName';
 
-    final file = File(filePath);
-    await file.writeAsBytes(await pdf.save());
-
-    return filePath;
+      final file = File(filePath);
+      await file.writeAsBytes(await pdf.save());
+      
+      print('PDF_SERVICE: Archivo guardado exitosamente en: $filePath');
+      return filePath;
+    } catch (e) {
+      print('PDF_SERVICE_ERROR: Error al guardar PDF: $e');
+      rethrow;
+    }
   }
 
   /// Construye tabla de cartera para el reporte

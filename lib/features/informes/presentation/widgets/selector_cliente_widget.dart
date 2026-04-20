@@ -28,8 +28,8 @@ class _SelectorClienteWidgetState
 
     return Dialog(
       child: Container(
-        width: 500,
         padding: const EdgeInsets.all(16),
+        constraints: const BoxConstraints(maxWidth: 500),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

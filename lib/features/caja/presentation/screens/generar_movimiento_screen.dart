@@ -8,6 +8,7 @@ import '../../../../presentation/widgets/app_drawer.dart';
 import '../../../../presentation/widgets/custom_button.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../prestamos/presentation/providers/prestamo_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../clientes/presentation/providers/cliente_provider.dart';
 import '../../../../presentation/widgets/custom_text_field.dart';
 
@@ -111,6 +112,13 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
 
     if (monto != null && tasa != null && plazo != null && 
         monto > 0 && tasa >= 0 && plazo > 0) {
+      
+      // Evitar cálculos redundantes si los valores son idénticos
+      if (_totalesPrestamo != null && 
+          _curMonto == monto && _curTasa == tasa && _curPlazo == plazo && _curTipo == _tipoInteres) {
+        return;
+      }
+
       try {
         final totales = await ref.read(calcularTotalesProvider((
           monto: monto,
@@ -122,6 +130,10 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         if (mounted) {
           setState(() {
             _totalesPrestamo = totales;
+            _curMonto = monto;
+            _curTasa = tasa;
+            _curPlazo = plazo;
+            _curTipo = _tipoInteres;
           });
         }
       } catch (e) {
@@ -133,6 +145,12 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       }
     }
   }
+
+  // Variables auxiliares para evitar recalcular
+  double? _curMonto;
+  double? _curTasa;
+  int? _curPlazo;
+  TipoInteres? _curTipo;
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
@@ -491,203 +509,209 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 900;
+
+    // Observar providers en el nivel superior del build para asegurar estabilidad
+    final categoriasAsync = ref.watch(categoriasProvider(_tipoMovimiento == TipoMovimiento.ingreso ? 'INGRESO' : 'EGRESO'));
+    final cajasAsync = ref.watch(cajasActivasProvider);
     
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 900;
-        
-        final formColumn = SingleChildScrollView(
-          padding: EdgeInsets.all(isMobile ? 16 : 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
+    // Preparar datos para el impacto
+    final targetId = _tipoMovimiento == TipoMovimiento.ingreso ? _cajaDestinoId : _cajaOrigenId;
+    Caja? selectedCaja;
+    if (targetId != null && cajasAsync.hasValue) {
+      try {
+        selectedCaja = cajasAsync.value!.firstWhere((c) => c.id == targetId);
+      } catch (_) {
+        selectedCaja = null;
+      }
+    }
+
+    final formColumn = SingleChildScrollView(
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section 1: Tipo de Operación
+            _buildSectionCard(
+              context,
+              title: _tipoMovimiento == TipoMovimiento.egreso ? 'Configuración de Operación' : (_tipoMovimiento == TipoMovimiento.ingreso ? 'Ingreso / Entrada' : 'Transferencia Interna'),
+              icon: Icons.settings_outlined,
+              child: Column(
+                children: [
+                  _buildTipoSelector(context),
+                  if (_tipoMovimiento == TipoMovimiento.egreso) ...[
+                    const SizedBox(height: 20),
+                    _buildSubTipoSelector(context),
+                  ],
+                  if (_subTipoEgreso == SubTipoEgreso.prestamo && _tipoMovimiento == TipoMovimiento.egreso) ...[
+                    const SizedBox(height: 24),
+                    _buildClienteField(context),
+                  ],
+                  // Sub-tipo para Ingreso
+                  if (_tipoMovimiento == TipoMovimiento.ingreso) ...[
+                    const SizedBox(height: 20),
+                    _buildSubTipoIngresoSelector(context),
+                  ],
+                  if (_tipoMovimiento == TipoMovimiento.ingreso && _subTipoIngreso == SubTipoIngreso.pagoPrestamo) ...[
+                    const SizedBox(height: 24),
+                    _buildClientePagoField(context),
+                    if (_clienteIdPago != null) ...[
+                      const SizedBox(height: 16),
+                      _buildPrestamoPagoField(context),
+                    ],
+                    if (_prestamoIdPago != null) ...[
+                      const SizedBox(height: 16),
+                      _buildAbonoCapitalPagoToggle(context),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Section 2: Detalles Financieros
+            _buildSectionCard(
+              context,
+              title: 'Valores Financieros',
+              icon: Icons.payments_outlined,
+              child: Column(
+                children: [
+                  _buildMontoField(context),
+                  const SizedBox(height: 24),
+                  if (isMobile) ...[
+                    _buildCajaField(context, cajasAsync, label: _tipoMovimiento == TipoMovimiento.transferencia ? 'CAJA DE ORIGEN' : null),
+                    const SizedBox(height: 16),
+                    if (_tipoMovimiento == TipoMovimiento.transferencia) ...[
+                      _buildCajaDestinoField(context, cajasAsync),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildFechaField(context),
+                    if (_tipoMovimiento != TipoMovimiento.transferencia) ...[
+                      const SizedBox(height: 16),
+                      _buildCategoriaField(context, categoriasAsync),
+                    ],
+                  ] else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3, 
+                          child: Column(
+                            children: [
+                              _buildCajaField(context, cajasAsync, label: _tipoMovimiento == TipoMovimiento.transferencia ? 'CAJA DE ORIGEN' : null),
+                              if (_tipoMovimiento == TipoMovimiento.transferencia) ...[
+                                const SizedBox(height: 16),
+                                _buildCajaDestinoField(context, cajasAsync),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2, 
+                          child: Column(
+                            children: [
+                              _buildFechaField(context),
+                              if (_tipoMovimiento != TipoMovimiento.transferencia) ...[
+                                const SizedBox(height: 16),
+                                _buildCategoriaField(context, categoriasAsync),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Section 3: Concepto y Referencia
+            _buildSectionCard(
+              context,
+              title: 'Concepto y Detalles',
+              icon: Icons.description_outlined,
+              child: Column(
+                children: [
+                  _buildDescriptionField(context),
+                  const SizedBox(height: 24),
+                  _buildReferenceField(context),
+                ],
+              ),
+            ),
+            
+            // Prestamo Section (Conditional) - Condiciones
+            if (_subTipoEgreso == SubTipoEgreso.prestamo && _tipoMovimiento == TipoMovimiento.egreso) ...[
+               const SizedBox(height: 24),
+               _buildSectionCard(
+                 context,
+                 title: 'Condiciones del Préstamo',
+                 icon: Icons.gavel_outlined,
+                 child: _buildPrestamoCondicionesContent(context),
+               ),
+            ],
+            if (isMobile) ...[
+               const SizedBox(height: 24),
+               _buildMobileImpactCard(context, selectedCaja),
+               const SizedBox(height: 80), // Espacio para scroll
+            ],
+          ],
+        ),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: AppColors.background(context),
+      appBar: _buildAppBar(isDark),
+      drawer: const AppDrawer(),
+      body: isMobile 
+          ? formColumn 
+          : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Section 1: Tipo de Operación
-                _buildSectionCard(
-                  context,
-                  title: _tipoMovimiento == TipoMovimiento.egreso ? 'Configuración de Operación' : (_tipoMovimiento == TipoMovimiento.ingreso ? 'Ingreso / Entrada' : 'Transferencia Interna'),
-                  icon: Icons.settings_outlined,
-                  child: Column(
-                    children: [
-                      _buildTipoSelector(context),
-                      if (_tipoMovimiento == TipoMovimiento.egreso) ...[
-                        const SizedBox(height: 20),
-                        _buildSubTipoSelector(context),
-                      ],
-                      if (_subTipoEgreso == SubTipoEgreso.prestamo && _tipoMovimiento == TipoMovimiento.egreso) ...[
-                        const SizedBox(height: 24),
-                        _buildClienteField(context),
-                      ],
-                      // Sub-tipo para Ingreso
-                      if (_tipoMovimiento == TipoMovimiento.ingreso) ...[
-                        const SizedBox(height: 20),
-                        _buildSubTipoIngresoSelector(context),
-                      ],
-                      if (_tipoMovimiento == TipoMovimiento.ingreso && _subTipoIngreso == SubTipoIngreso.pagoPrestamo) ...[
-                        const SizedBox(height: 24),
-                        _buildClientePagoField(context),
-                        if (_clienteIdPago != null) ...[
-                          const SizedBox(height: 16),
-                          _buildPrestamoPagoField(context),
-                        ],
-                        if (_prestamoIdPago != null) ...[
-                          const SizedBox(height: 16),
-                          _buildAbonoCapitalPagoToggle(context),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                // Main Form Area (70%)
+                Expanded(flex: 7, child: formColumn),
 
-                // Section 2: Detalles Financieros
-                _buildSectionCard(
-                  context,
-                  title: 'Valores Financieros',
-                  icon: Icons.payments_outlined,
-                  child: Column(
-                    children: [
-                      _buildMontoField(context),
-                      const SizedBox(height: 24),
-                      if (isMobile) ...[
-                        _buildCajaField(context, label: _tipoMovimiento == TipoMovimiento.transferencia ? 'CAJA DE ORIGEN' : null),
-                        const SizedBox(height: 16),
-                        if (_tipoMovimiento == TipoMovimiento.transferencia) ...[
-                          _buildCajaDestinoField(context),
-                          const SizedBox(height: 16),
-                        ],
-                        _buildFechaField(context),
-                        if (_tipoMovimiento != TipoMovimiento.transferencia) ...[
-                          const SizedBox(height: 16),
-                          _buildCategoriaField(context),
-                        ],
-                      ] else
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 3, 
-                              child: Column(
-                                children: [
-                                  _buildCajaField(context, label: _tipoMovimiento == TipoMovimiento.transferencia ? 'CAJA DE ORIGEN' : null),
-                                  if (_tipoMovimiento == TipoMovimiento.transferencia) ...[
-                                    const SizedBox(height: 16),
-                                    _buildCajaDestinoField(context),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 2, 
-                              child: Column(
-                                children: [
-                                  _buildFechaField(context),
-                                  if (_tipoMovimiento != TipoMovimiento.transferencia) ...[
-                                    const SizedBox(height: 16),
-                                    _buildCategoriaField(context),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
+                // Impact Sidebar (30%)
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 24, right: 24, bottom: 24),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface(context),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        isDark 
+                          ? BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
+                          : BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: _buildImpactSidebar(context, selectedCaja),
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // Section 3: Concepto y Referencia
-                _buildSectionCard(
-                  context,
-                  title: 'Concepto y Detalles',
-                  icon: Icons.description_outlined,
-                  child: Column(
-                    children: [
-                      _buildDescriptionField(context),
-                      const SizedBox(height: 24),
-                      _buildReferenceField(context),
-                    ],
-                  ),
-                ),
-                
-                // Prestamo Section (Conditional) - Condiciones
-                if (_subTipoEgreso == SubTipoEgreso.prestamo && _tipoMovimiento == TipoMovimiento.egreso) ...[
-                   const SizedBox(height: 24),
-                   _buildSectionCard(
-                     context,
-                     title: 'Condiciones del Préstamo',
-                     icon: Icons.gavel_outlined,
-                     child: _buildPrestamoCondicionesContent(context),
-                   ),
-                ],
-                if (isMobile) ...[
-                   const SizedBox(height: 24),
-                   _buildMobileImpactCard(context),
-                   const SizedBox(height: 80), // Espacio para scroll
-                ],
               ],
             ),
-          ),
-        );
-
-        if (isMobile) return Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF3F4F6),
-          appBar: _buildAppBar(isDark),
-          drawer: const AppDrawer(),
-          body: formColumn,
-        );
-
-        return Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF3F4F6),
-          appBar: _buildAppBar(isDark),
-          drawer: const AppDrawer(),
-          body: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Main Form Area (70%)
-              Expanded(flex: 7, child: formColumn),
-
-              // Impact Sidebar (30%)
-              Expanded(
-                flex: 3,
-                child: Container(
-                  margin: const EdgeInsets.only(top: 24, right: 24, bottom: 24),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E2130) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      isDark 
-                        ? BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
-                        : BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: _buildImpactSidebar(context),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
   // Helper para AppBar para reutilizar en Mobile/Desktop
   PreferredSizeWidget _buildAppBar(bool isDark) {
     return AppBar(
-      title: Text('Nuevo Movimiento', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold)),
-      backgroundColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+      title: Text('Nuevo Movimiento', style: TextStyle(color: AppColors.textPrimary(context), fontWeight: FontWeight.bold)),
+      backgroundColor: AppColors.surface(context),
       elevation: 0,
       leading: Builder(
         builder: (context) => IconButton(
-          icon: Icon(Icons.menu, color: isDark ? Colors.white : const Color(0xFF1E293B)),
+          icon: Icon(Icons.menu, color: AppColors.textPrimary(context)),
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
       actions: [
         IconButton(
-          icon: Icon(Icons.refresh, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+          icon: Icon(Icons.refresh, color: AppColors.textSecondary(context)),
           onPressed: _limpiarFormulario,
         ),
         const Padding(
@@ -702,15 +726,15 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     );
   }
 
-  Widget _buildMobileImpactCard(BuildContext context) {
+  Widget _buildMobileImpactCard(BuildContext context, Caja? selectedCaja) {
      final isDark = Theme.of(context).brightness == Brightness.dark;
      return Container(
        decoration: BoxDecoration(
-         color: isDark ? const Color(0xFF1E2130) : Colors.white,
+         color: AppColors.surface(context),
          borderRadius: BorderRadius.circular(16),
          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
        ),
-       child: _buildImpactSidebar(context, showActions: false),
+        child: _buildImpactSidebar(context, selectedCaja, showActions: true),
      );
   }
 
@@ -719,7 +743,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2130) : Colors.white,
+        color: AppColors.surface(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           isDark 
@@ -740,7 +764,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                 style: TextStyle(
                   fontSize: 18, 
                   fontWeight: FontWeight.bold, 
-                  color: isDark ? Colors.white : const Color(0xFF1E293B)
+                  color: AppColors.textPrimary(context)
                 ),
               ),
             ],
@@ -783,7 +807,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? (isDark ? const Color(0xFF262A40) : Colors.white) : Colors.transparent,
+            color: isSelected ? (AppColors.cardBg(context)) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : null,
           ),
@@ -792,8 +816,8 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
               label,
               style: TextStyle(
                 color: isSelected 
-                  ? (isDark ? Colors.white : const Color(0xFF1E293B)) 
-                  : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                  ? (AppColors.textPrimary(context)) 
+                  : (AppColors.textSecondary(context)),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 14,
               ),
@@ -809,7 +833,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('FECHA DEL MOVIMIENTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('FECHA DEL MOVIMIENTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -823,16 +847,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F111A) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
-            ),
+              decoration: BoxDecoration(
+                color: AppColors.inputFill(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border(context)),
+              ),
             child: Row(
               children: [
                 const Icon(Icons.calendar_month_outlined, size: 20, color: Color(0xFF94A3B8)),
                 const SizedBox(width: 12),
-                Text(DateFormat('dd/MM/yyyy').format(_fecha), style: TextStyle(fontSize: 15, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+                Text(DateFormat('dd/MM/yyyy').format(_fecha), style: TextStyle(fontSize: 15, color: AppColors.textPrimary(context))),
                 const Spacer(),
                 const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF94A3B8)),
               ],
@@ -877,7 +901,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
             child: Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF8B5CF6) : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                color: isSelected ? const Color(0xFF8B5CF6) : (AppColors.textSecondary(context)),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 13,
               ),
@@ -888,7 +912,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     );
   }
 
-  Widget _buildCategoriaField(BuildContext context) {
+  Widget _buildCategoriaField(BuildContext context, AsyncValue<List<String>> categoriasAsync) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isIngreso = _tipoMovimiento == TipoMovimiento.ingreso;
     
@@ -897,8 +921,6 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
       return const SizedBox.shrink();
     }
     
-    final categoriasAsync = ref.watch(categoriasProvider(isIngreso ? 'INGRESO' : 'EGRESO'));
-    
     final defaultCategories = isIngreso 
         ? ['INGRESO GENERAL', 'APORTE DE CAPITAL', 'VENTA DE ACTIVOS']
         : ['GASTO OPERATIVO', 'SERVICIOS', 'PERSONAL', 'MANTENIMIENTO'];
@@ -906,7 +928,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('CATEGORÍA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('CATEGORÍA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         categoriasAsync.when(
           data: (categorias) {
@@ -925,16 +947,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                   setState(() => _categoria = v);
                 }
               },
-              dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+              dropdownColor: AppColors.surface(context),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.sell_outlined, size: 20, color: Color(0xFF94A3B8)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+                fillColor: AppColors.inputFill(context),
               ),
-              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 15),
+              style: TextStyle(color: AppColors.textPrimary(context), fontSize: 15),
               items: [
                 ...allCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
                 const DropdownMenuItem(
@@ -957,9 +979,8 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     );
   }
 
-  Widget _buildCajaField(BuildContext context, {String? label}) {
+  Widget _buildCajaField(BuildContext context, AsyncValue<List<Caja>> cajasAsync, {String? label}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cajasAsync = ref.watch(cajasActivasProvider);
     
     // Si es ingreso, mostramos etiqueta de destino y usamos _cajaDestinoId
     final isIngreso = _tipoMovimiento == TipoMovimiento.ingreso;
@@ -978,7 +999,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label ?? (isIngreso ? 'CAJA DE DESTINO' : 'CAJA DE ORIGEN'), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text(label ?? (isIngreso ? 'CAJA DE DESTINO' : 'CAJA DE ORIGEN'), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         cajasAsync.when(
           data: (cajas) => DropdownButtonFormField<int>(
@@ -990,16 +1011,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                 _cajaOrigenId = v;
               }
             }),
-            dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+            dropdownColor: AppColors.surface(context),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.account_balance_outlined, size: 20, color: Color(0xFF94A3B8)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
               filled: true,
-              fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+              fillColor: AppColors.inputFill(context),
             ),
-            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 15),
+            style: TextStyle(color: AppColors.textPrimary(context), fontSize: 15),
             items: cajas.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nombre))).toList(),
           ),
           loading: () => const LinearProgressIndicator(),
@@ -1016,29 +1037,28 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     );
   }
 
-  Widget _buildCajaDestinoField(BuildContext context) {
+  Widget _buildCajaDestinoField(BuildContext context, AsyncValue<List<Caja>> cajasAsync) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cajasAsync = ref.watch(cajasActivasProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('CAJA DE DESTINO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('CAJA DE DESTINO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         cajasAsync.when(
           data: (cajas) => DropdownButtonFormField<int>(
             value: _cajaDestinoId,
             onChanged: (v) => setState(() => _cajaDestinoId = v),
-            dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+            dropdownColor: AppColors.surface(context),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.account_balance_outlined, size: 20, color: Color(0xFF94A3B8)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
               filled: true,
-              fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+              fillColor: AppColors.inputFill(context),
             ),
-            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 15),
+            style: TextStyle(color: AppColors.textPrimary(context), fontSize: 15),
             items: cajas.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nombre))).toList(),
           ),
           loading: () => const LinearProgressIndicator(),
@@ -1057,12 +1077,12 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         TextFormField(
           controller: _montoController,
           keyboardType: TextInputType.number,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B)),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
           decoration: InputDecoration(
             prefixText: '\$ ',
             prefixStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
@@ -1072,13 +1092,13 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                 color: isDark ? const Color(0xFF262A40) : const Color(0xFFF1F5F9), 
                 borderRadius: BorderRadius.circular(6)
               ),
-              child: Text('BS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+              child: Text('BS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+            fillColor: AppColors.background(context),
           ),
         ),
       ],
@@ -1090,20 +1110,20 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('DESCRIPCIÓN / CONCEPTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('DESCRIPCIÓN / CONCEPTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         TextFormField(
           controller: _descripcionController,
           maxLines: 4,
-          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+          style: TextStyle(color: AppColors.textPrimary(context)),
           decoration: InputDecoration(
             hintText: 'Escriba los detalles de la operación...',
             hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8), fontSize: 14),
             contentPadding: const EdgeInsets.all(16),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+            fillColor: AppColors.background(context),
           ),
         ),
       ],
@@ -1115,42 +1135,30 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('REFERENCIA (OPCIONAL)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('REFERENCIA (OPCIONAL)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         TextFormField(
           controller: _motivoController,
-          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+          style: TextStyle(color: AppColors.textPrimary(context)),
           decoration: InputDecoration(
             hintText: '# de Recibo / Factura',
             prefixIcon: const Icon(Icons.receipt_long_outlined, size: 20, color: Color(0xFF94A3B8)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+            fillColor: AppColors.background(context),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildImpactSidebar(BuildContext context, {bool showActions = true}) {
+  Widget _buildImpactSidebar(BuildContext context, Caja? selectedCaja, {bool showActions = true}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cajasAsync = ref.watch(cajasActivasProvider);
     
-    // Obtener caja seleccionada y saldo
+    // Obtener saldo
     final isIncome = _tipoMovimiento == TipoMovimiento.ingreso;
-    final targetId = isIncome ? _cajaDestinoId : _cajaOrigenId;
-
-    // Fix: Usar try-catch o find de forma más segura para evitar error de tipo en orElse
-    Caja? selectedCaja;
-    if (targetId != null && cajasAsync.hasValue) {
-      try {
-        selectedCaja = cajasAsync.value!.firstWhere((c) => c.id == targetId);
-      } catch (_) {
-        selectedCaja = null;
-      }
-    }
     
     final saldoActual = selectedCaja?.saldo ?? 0.0;
     final monto = double.tryParse(_montoController.text) ?? 0.0;
@@ -1165,9 +1173,10 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('IMPACTO DE OPERACIÓN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), letterSpacing: 0.5)),
+          Text('IMPACTO DE OPERACIÓN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context), letterSpacing: 0.5)),
           const SizedBox(height: 32),
           _buildImpactRow(context, 'Saldo Actual', '${Formatters.formatNumber(saldoActual)} Bs.'),
           if (monto > 0) ...[
@@ -1194,18 +1203,22 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
           const SizedBox(height: 12),
           _buildImpactInfo(context, 'Fecha', DateFormat('dd/MM/yyyy').format(_fecha)),
           if (showActions) ...[
-            const Spacer(),
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: outOfFunds ? null : _guardar, // Deshabilitar si no hay fondos
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B5CF6),
+                  backgroundColor: _tipoMovimiento == TipoMovimiento.ingreso 
+                      ? const Color(0xFF10B981) 
+                      : (_tipoMovimiento == TipoMovimiento.egreso ? const Color(0xFFEF4444) : const Color(0xFF3B82F6)),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: isDark ? 4 : 0,
-                  shadowColor: isDark ? const Color(0xFF8B5CF6).withOpacity(0.3) : null,
+                  shadowColor: (_tipoMovimiento == TipoMovimiento.ingreso 
+                      ? const Color(0xFF10B981) 
+                      : (_tipoMovimiento == TipoMovimiento.egreso ? const Color(0xFFEF4444) : const Color(0xFF3B82F6))).withOpacity(0.3),
                 ),
                 child: _isLoading 
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -1227,9 +1240,9 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  side: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+                  side: BorderSide(color: AppColors.border(context)),
                 ),
-                child: Text('Cancelar', style: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), fontWeight: FontWeight.bold)),
+                child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary(context), fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -1254,8 +1267,8 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), fontSize: 13)),
-        Text(value, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.w500, fontSize: 13)),
+        Text(label, style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13)),
+        Text(value, style: TextStyle(color: AppColors.textPrimary(context), fontWeight: FontWeight.w500, fontSize: 13)),
       ],
     );
   }
@@ -1271,7 +1284,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         Container(height: 1, color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          color: isDark ? const Color(0xFF1E2130) : Colors.white,
+          color: AppColors.surface(context),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1299,13 +1312,13 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
           ? const Color(0xFFEF4444).withOpacity(0.1) 
           : (isDark ? const Color(0xFF0F111A).withOpacity(0.3) : const Color(0xFFF8FAFC)),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: warning ? const Color(0xFFEF4444).withOpacity(0.5) : (isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+        border: Border.all(color: warning ? const Color(0xFFEF4444).withOpacity(0.5) : (AppColors.border(context))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text('Nuevo Saldo', style: TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
-          Text(value, style: TextStyle(color: warning ? const Color(0xFFEF4444) : (isDark ? Colors.white : const Color(0xFF1E293B)), fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(value, style: TextStyle(color: warning ? const Color(0xFFEF4444) : (AppColors.textPrimary(context)), fontWeight: FontWeight.bold, fontSize: 18)),
         ],
       ),
     );
@@ -1316,8 +1329,8 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), fontSize: 13)),
-        Text(value, style: TextStyle(color: label == 'Tipo' ? const Color(0xFFEF4444) : (isDark ? Colors.white : const Color(0xFF1E293B)), fontWeight: FontWeight.bold, fontSize: 13)),
+        Text(label, style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13)),
+        Text(value, style: TextStyle(color: label == 'Tipo' ? const Color(0xFFEF4444) : (AppColors.textPrimary(context)), fontWeight: FontWeight.bold, fontSize: 13)),
       ],
     );
   }
@@ -1329,23 +1342,23 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('CLIENTE DEL PRÉSTAMO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('CLIENTE DEL PRÉSTAMO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         clientesAsync.when(
           data: (clientes) => DropdownButtonFormField<int>(
             value: _clienteId,
             onChanged: (v) => setState(() => _clienteId = v),
-            dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+            dropdownColor: AppColors.surface(context),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.person_outline, size: 20, color: Color(0xFF94A3B8)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
               filled: true,
-              fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+              fillColor: AppColors.inputFill(context),
               hintText: 'Seleccionar cliente...',
             ),
-            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+            style: TextStyle(color: AppColors.textPrimary(context)),
             items: clientes.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nombre))).toList(),
           ),
           loading: () => const LinearProgressIndicator(),
@@ -1364,16 +1377,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
             Expanded(
               child: TextFormField(
                 controller: _tasaController,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+                style: TextStyle(color: AppColors.textPrimary(context)),
                 decoration: InputDecoration(
                   labelText: _tipoInteres == TipoInteres.wilson ? 'Tasa/Mes (%)' : 'Tasa/Año (%)',
-                  labelStyle: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary(context)),
                   prefixIcon: const Icon(Icons.percent, size: 18),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+                  fillColor: AppColors.inputFill(context),
                 ),
               ),
             ),
@@ -1381,16 +1394,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
             Expanded(
               child: TextFormField(
                 controller: _plazoController,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+                style: TextStyle(color: AppColors.textPrimary(context)),
                 decoration: InputDecoration(
                   labelText: 'Plazo (Meses)',
-                  labelStyle: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary(context)),
                   prefixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+                  fillColor: AppColors.inputFill(context),
                 ),
               ),
             ),
@@ -1432,7 +1445,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? (isDark ? const Color(0xFF262A40) : Colors.white) : Colors.transparent,
+            color: isSelected ? (AppColors.cardBg(context)) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
@@ -1440,8 +1453,8 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
               label,
               style: TextStyle(
                 color: isSelected 
-                  ? (isDark ? Colors.white : const Color(0xFF1E293B)) 
-                  : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                  ? (AppColors.textPrimary(context)) 
+                  : (AppColors.textSecondary(context)),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 13,
               ),
@@ -1498,7 +1511,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
             child: Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF8B5CF6) : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B)),
+                color: isSelected ? const Color(0xFF8B5CF6) : (AppColors.textSecondary(context)),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 13,
               ),
@@ -1516,39 +1529,35 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('CLIENTE DEL PRÉSTAMO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('CLIENTE DEL PRÉSTAMO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         clientesAsync.when(
           data: (clientes) => DropdownButtonFormField<int>(
             value: _clienteIdPago,
             onChanged: (v) {
               if (_clienteIdPago != v) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _clienteIdPago = v;
-                      // Reset préstamo al cambiar cliente
-                      _prestamoIdPago = null;
-                      _prestamoCodigoPago = null;
-                      _saldoPagoPendiente = null;
-                      _esAbonoCapitalPago = false;
-                      _esCobroInteresPago = false;
-                    });
-                  }
+                setState(() {
+                  _clienteIdPago = v;
+                  // Reset préstamo al cambiar cliente
+                  _prestamoIdPago = null;
+                  _prestamoCodigoPago = null;
+                  _saldoPagoPendiente = null;
+                  _esAbonoCapitalPago = false;
+                  _esCobroInteresPago = false;
                 });
               }
             },
-            dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+            dropdownColor: AppColors.surface(context),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.person_outline, size: 20, color: Color(0xFF94A3B8)),
               hintText: 'Seleccionar cliente...',
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
               filled: true,
-              fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+              fillColor: AppColors.inputFill(context),
             ),
-            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+            style: TextStyle(color: AppColors.textPrimary(context)),
             items: clientes.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nombre))).toList(),
           ),
           loading: () => const LinearProgressIndicator(),
@@ -1565,7 +1574,7 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('PRÉSTAMO A PAGAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+        Text('PRÉSTAMO A PAGAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary(context))),
         const SizedBox(height: 8),
         prestamosAsync.when(
           data: (prestamos) {
@@ -1573,11 +1582,11 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+                  color: AppColors.background(context),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+                  border: Border.all(color: AppColors.border(context)),
                 ),
-                child: Text('Este cliente no tiene préstamos activos', style: TextStyle(color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B), fontSize: 13)),
+                child: Text('Este cliente no tiene préstamos activos', style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13)),
               );
             }
             return Column(
@@ -1587,27 +1596,23 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
                   value: _prestamoIdPago,
                   onChanged: (v) {
                     final p = prestamos.firstWhere((p) => p.id == v);
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _prestamoIdPago = v;
-                          _prestamoCodigoPago = p.codigo;
-                          _saldoPagoPendiente = p.saldoPendiente;
-                        });
-                      }
+                    setState(() {
+                      _prestamoIdPago = v;
+                      _prestamoCodigoPago = p.codigo;
+                      _saldoPagoPendiente = p.saldoPendiente;
                     });
                   },
-                  dropdownColor: isDark ? const Color(0xFF1E2130) : Colors.white,
+                  dropdownColor: AppColors.surface(context),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.receipt_long_outlined, size: 20, color: Color(0xFF94A3B8)),
                     hintText: 'Seleccionar préstamo...',
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border(context))),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6))),
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF0F111A) : Colors.white,
+                    fillColor: AppColors.inputFill(context),
                   ),
-                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B)),
+                  style: TextStyle(color: AppColors.textPrimary(context)),
                   items: prestamos.map((p) => DropdownMenuItem(
                     value: p.id,
                     child: Text('${p.codigo} — Saldo: Bs. ${Formatters.formatNumber(p.saldoPendiente)}'),
@@ -1635,16 +1640,16 @@ class _GenerarMovimientoScreenState extends ConsumerState<GenerarMovimientoScree
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F111A) : const Color(0xFFF8FAFC),
+        color: AppColors.background(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Abono directo a Capital', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 14, fontWeight: FontWeight.w500)),
-            subtitle: Text('Omite mora e interés — todo va al capital', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B))),
+            title: Text('Abono directo a Capital', style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14, fontWeight: FontWeight.w500)),
+            subtitle: Text('Omite mora e interés — todo va al capital', style: TextStyle(fontSize: 11, color: AppColors.textSecondary(context))),
             value: _esAbonoCapitalPago,
             onChanged: (v) => setState(() {
               _esAbonoCapitalPago = v;

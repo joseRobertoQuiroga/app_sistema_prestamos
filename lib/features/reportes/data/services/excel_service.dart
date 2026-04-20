@@ -545,16 +545,23 @@ class ExcelService {
 
   /// Guarda el archivo Excel y retorna la ruta
   Future<String> _guardarArchivo(Excel excel, String nombreBase) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-    final fileName = '${nombreBase}_$timestamp.xlsx';
-    final filePath = '${directory.path}/$fileName';
+    try {
+      print('EXCEL_SERVICE: Iniciando generación de $nombreBase');
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final fileName = '${nombreBase}_$timestamp.xlsx';
+      final filePath = '${directory.path}/$fileName';
 
-    final fileBytes = excel.encode();
-    final file = File(filePath);
-    await file.writeAsBytes(fileBytes!);
+      final fileBytes = excel.encode();
+      final file = File(filePath);
+      await file.writeAsBytes(fileBytes!);
 
-    return filePath;
+      print('EXCEL_SERVICE: Archivo Excel guardado en: $filePath');
+      return filePath;
+    } catch (e) {
+      print('EXCEL_SERVICE_ERROR: Error al generar Excel: $e');
+      rethrow;
+    }
   }
 }
 

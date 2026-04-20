@@ -57,38 +57,73 @@ class CajasListScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // HEADING SECTION
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
+            Builder(
+              builder: (context) {
+                final screenWidth = MediaQuery.of(context).size.width;
+                final isMobile = screenWidth < 800;
+                
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Cajas',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cajas',
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                'Gestione sus cajas y cuentas bancarias',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: isDark ? Colors.white38 : Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!isMobile) _buildNewCajaButton(context, ref),
+                      ],
                     ),
-                    Text(
-                      'Gestione sus cajas y cuentas bancarias',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isDark ? Colors.white38 : Colors.grey,
+                    
+                    const SizedBox(height: 24),
+                    
+                    // On mobile, show stats and button in a more compact way
+                    if (isMobile) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: saldoTotalAsync.when(
+                              data: (saldo) => _buildSaldoTotalCard(context, saldo, isDark),
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (_, __) => const SizedBox.shrink(),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildNewCajaButton(context, ref),
+                      ),
+                    ] else ...[
+                      // On desktop, only stats here if not in the row
+                      saldoTotalAsync.when(
+                        data: (saldo) => _buildSaldoTotalCard(context, saldo, isDark),
+                        loading: () => const CircularProgressIndicator(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
+                    ],
                   ],
-                ),
-                
-                // SALDO TOTAL CARD
-                saldoTotalAsync.when(
-                  data: (saldo) => _buildSaldoTotalCard(context, saldo, isDark),
-                  loading: () => const CircularProgressIndicator(),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-
-                // NUEVA CAJA BUTTON
-                _buildNewCajaButton(context, ref),
-              ],
+                );
+              },
             ),
             
             const SizedBox(height: 32),
@@ -169,12 +204,15 @@ class CajasListScreen extends ConsumerWidget {
                   letterSpacing: 1,
                 ),
               ),
-              Text(
-                '${Formatters.formatCurrency(saldo)} Bs.',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${Formatters.formatCurrency(saldo)} Bs.',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -212,7 +250,8 @@ class CajasListScreen extends ConsumerWidget {
 
   Widget _buildSearchBar(WidgetRef ref, bool isDark) {
     return Container(
-      width: 350,
+      constraints: const BoxConstraints(maxWidth: 500),
+      width: double.infinity,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E2130) : Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -248,7 +287,7 @@ class CajasListScreen extends ConsumerWidget {
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 24,
         mainAxisSpacing: 24,
-        childAspectRatio: crossAxisCount == 1 ? 2.5 : 1.4,
+        childAspectRatio: crossAxisCount == 1 ? 1.6 : (crossAxisCount == 2 ? 1.2 : 1.4),
       ),
       itemCount: cajas.length + 1, // +1 for the "Add New" card
       itemBuilder: (context, index) {
@@ -446,15 +485,20 @@ class _CajaIndividualCard extends StatelessWidget {
             
             const Divider(height: 32, thickness: 1, color: Colors.white12),
 
-            // BALANCE
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  Formatters.formatCurrency(caja.saldo),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: caja.saldo < 0 ? (isDark ? Color(0xFFF87171) : Colors.red) : (isDark ? Colors.white : Colors.black87),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.bottomLeft,
+                    child: Text(
+                      Formatters.formatCurrency(caja.saldo),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: caja.saldo < 0 ? (isDark ? const Color(0xFFF87171) : Colors.red) : (isDark ? Colors.white : Colors.black87),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),

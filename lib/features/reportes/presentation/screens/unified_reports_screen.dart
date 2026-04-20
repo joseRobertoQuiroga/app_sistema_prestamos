@@ -14,6 +14,7 @@ import '../../../caja/presentation/providers/caja_provider.dart';
 import '../../../caja/domain/entities/movimiento.dart';
 import '../../../informes/presentation/widgets/selector_cliente_widget.dart';
 import '../../../informes/presentation/widgets/selector_prestamo_widget.dart';
+import '../../../../core/utils/responsive_layout.dart';
 
 class UnifiedReportsScreen extends ConsumerStatefulWidget {
   const UnifiedReportsScreen({super.key});
@@ -75,55 +76,196 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF0F111A) : theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Reportes y Estadísticas'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(prestamosListProvider);
-              ref.invalidate(clientesProvider);
-              ref.invalidate(allPagosListProvider);
-              ref.invalidate(movimientosGeneralesProvider);
-            },
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: CircleAvatar(
-              backgroundColor: Color(0xFF9333EA),
-              child: Text('AD', style: TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-          ),
-        ],
-      ),
-      drawer: const AppDrawer(),
-      body: Row(
-        children: [
-          // Main Content Area
-          Expanded(
-            child: Column(
-              children: [
-                _buildFilterBar(context),
-                Expanded(child: _buildPreviewArea(context)),
-                _buildFooter(context),
+    return ResponsiveLayout(
+      mobile: Scaffold(
+        backgroundColor: isDarkMode ? const Color(0xFF0F111A) : theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Reportes'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
+            // Dropdown para cambiar reporte en móvil
+            PopupMenuButton<TipoReporte>(
+              icon: const Icon(Icons.description_outlined, color: Color(0xFF9333EA)),
+              tooltip: 'Cambiar Tipo de Reporte',
+              onSelected: (TipoReporte result) {
+                setState(() {
+                  _selectedReport = result;
+                  _selectedId = null;
+                  _selectedEntityName = null;
+                  _searchQuery = '';
+                });
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<TipoReporte>>[
+                const PopupMenuDivider(),
+                const PopupMenuItem(child: Text('CARTERA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+                const PopupMenuItem(value: TipoReporte.carteraCompleta, child: Text('Cartera Activa')),
+                const PopupMenuItem(value: TipoReporte.moraDetallada, child: Text('Mora Detallada')),
+                const PopupMenuItem(value: TipoReporte.prestamosCancelados, child: Text('Préstamos Cancelados')),
+                
+                const PopupMenuDivider(),
+                const PopupMenuItem(child: Text('CLIENTES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+                const PopupMenuItem(value: TipoReporte.estadoCuentaCliente, child: Text('Historial Cliente')),
+                const PopupMenuItem(value: TipoReporte.proyeccionCobros, child: Text('Proyección Cobros')),
+                
+                const PopupMenuDivider(),
+                const PopupMenuItem(child: Text('FINANZAS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+                const PopupMenuItem(value: TipoReporte.movimientosCaja, child: Text('Flujo de Caja')),
+                const PopupMenuItem(value: TipoReporte.resumenEgresos, child: Text('Resumen Egresos')),
+                const PopupMenuItem(value: TipoReporte.resumenIngresos, child: Text('Resumen Ingresos')),
               ],
             ),
-          ),
-          // Right Sidebar (Templates)
-          _buildSidebar(context),
-        ],
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                ref.invalidate(prestamosListProvider);
+                ref.invalidate(clientesProvider);
+                ref.invalidate(allPagosListProvider);
+                ref.invalidate(movimientosGeneralesProvider);
+              },
+            ),
+          ],
+        ),
+        drawer: const AppDrawer(),
+        endDrawer: Drawer(
+          backgroundColor: const Color(0xFF1E2130),
+          child: _buildSidebar(context),
+        ),
+        body: Column(
+          children: [
+            _buildFilterBar(context, isMobile: true),
+            Expanded(child: _buildPreviewArea(context, isMobile: true)),
+            _buildFooter(context, isMobile: true),
+          ],
+        ),
+      ),
+      desktop: Scaffold(
+        backgroundColor: isDarkMode ? const Color(0xFF0F111A) : theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Reportes y Estadísticas'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                ref.invalidate(prestamosListProvider);
+                ref.invalidate(clientesProvider);
+                ref.invalidate(allPagosListProvider);
+                ref.invalidate(movimientosGeneralesProvider);
+              },
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: CircleAvatar(
+                backgroundColor: Color(0xFF9333EA),
+                child: Text('AD', style: TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+            ),
+          ],
+        ),
+        drawer: const AppDrawer(),
+        body: Row(
+          children: [
+            // Main Content Area
+            Expanded(
+              child: Column(
+                children: [
+                  _buildFilterBar(context, isMobile: false),
+                  Expanded(child: _buildPreviewArea(context, isMobile: false)),
+                  _buildFooter(context, isMobile: false),
+                ],
+              ),
+            ),
+            // Right Sidebar (Templates)
+            _buildSidebar(context),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFilterBar(BuildContext context) {
+  Widget _buildFilterBar(BuildContext context, {required bool isMobile}) {
     final periodo = ref.watch(periodoSeleccionadoProvider);
     final formato = ref.watch(formatoSeleccionadoProvider);
     final generando = ref.watch(generandoReporteProvider);
+
+    if (isMobile) {
+      return Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2130),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDropdown(
+                    label: 'Período',
+                    value: periodo,
+                    items: const [
+                      DropdownMenuItem(value: 'ultimoMes', child: Text('Este Mes')),
+                      DropdownMenuItem(value: 'ultimoTrimestre', child: Text('Último Trimestre')),
+                      DropdownMenuItem(value: 'ultimoAnio', child: Text('Último Año')),
+                      DropdownMenuItem(value: 'todoElTiempo', child: Text('Todo el Tiempo')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) ref.read(periodoSeleccionadoProvider.notifier).state = val;
+                    },
+                    icon: Icons.calendar_today,
+                    width: double.infinity,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildDropdown(
+                    label: 'Formato',
+                    value: formato,
+                    items: const [
+                      DropdownMenuItem(value: 'pdf', child: Text('PDF')),
+                      DropdownMenuItem(value: 'excel', child: Text('Excel')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) ref.read(formatoSeleccionadoProvider.notifier).state = val;
+                    },
+                    icon: Icons.picture_as_pdf,
+                    width: double.infinity,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildSelectionButton(width: double.infinity),
+            const SizedBox(height: 16),
+            generando
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 8),
+                      Text('Generando...', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    ],
+                  )
+                : SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _generarReporte(context, ref, _selectedReport),
+                      icon: Icon(formato == 'pdf' ? Icons.picture_as_pdf : Icons.table_chart, size: 18),
+                      label: Text('Exportar ${formato.toUpperCase()}'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: formato == 'pdf' ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -192,7 +334,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     );
   }
 
-  Widget _buildSelectionButton() {
+  Widget _buildSelectionButton({double? width}) {
     String label = '';
     IconData icon = Icons.search;
     bool visible = false;
@@ -232,7 +374,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
           },
           borderRadius: BorderRadius.circular(8),
           child: Container(
-            width: 200,
+            width: width ?? 200,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.2),
@@ -273,6 +415,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     required List<DropdownMenuItem<String>> items,
     required void Function(String?) onChanged,
     required IconData icon,
+    double? width,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +423,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 4),
         Container(
-          width: 200,
+          width: width ?? 200,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.2),
@@ -302,10 +445,10 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     );
   }
 
-  Widget _buildPreviewArea(BuildContext context) {
+  Widget _buildPreviewArea(BuildContext context, {required bool isMobile}) {
     final generating = ref.watch(generandoReporteProvider);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E2130),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -316,34 +459,64 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
           // Preview Header
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(_selectedReport.icono, color: Colors.blue),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Vista Previa: ${_selectedReport.nombre}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                    if (_selectedEntityName != null)
-                      Text(
-                        'Filtro: $_selectedEntityName',
-                        style: const TextStyle(color: Colors.blue, fontSize: 12),
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(_selectedReport.icono, color: Colors.blue, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _selectedReport.nombre,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
-                const Spacer(),
-                _buildSearchField(),
-                IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  color: Colors.grey,
-                  tooltip: 'Limpiar búsqueda',
-                  onPressed: _searchQuery.isNotEmpty ? () => setState(() => _searchQuery = '') : null,
-                ),
-              ],
-            ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: _buildSearchField(width: double.infinity)),
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            color: Colors.grey,
+                            onPressed: _searchQuery.isNotEmpty ? () => setState(() => _searchQuery = '') : null,
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Icon(_selectedReport.icono, color: Colors.blue),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Vista Previa: ${_selectedReport.nombre}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                          if (_selectedEntityName != null)
+                            Text(
+                              'Filtro: $_selectedEntityName',
+                              style: const TextStyle(color: Colors.blue, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                      const Spacer(),
+                      _buildSearchField(),
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        color: Colors.grey,
+                        tooltip: 'Limpiar búsqueda',
+                        onPressed: _searchQuery.isNotEmpty ? () => setState(() => _searchQuery = '') : null,
+                      ),
+                    ],
+                  ),
           ),
           const Divider(height: 1, color: Colors.white12),
           // Dynamic Content
@@ -790,14 +963,15 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     return filtered;
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearchField({double? width}) {
     return Container(
-      width: 220,
+      width: width ?? 220,
       height: 36,
       margin: const EdgeInsets.symmetric(horizontal: 8),
       child: TextField(
         onChanged: (val) => setState(() => _searchQuery = val),
         controller: TextEditingController(text: _searchQuery)..selection = TextSelection.fromPosition(TextPosition(offset: _searchQuery.length)),
+        style: const TextStyle(fontSize: 13, color: Colors.white),
         decoration: InputDecoration(
           hintText: 'Buscar en resultados...',
           hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
@@ -827,7 +1001,7 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
     );
   }
 
-  Widget _buildFooter(BuildContext context) {
+  Widget _buildFooter(BuildContext context, {required bool isMobile}) {
     final periodo = ref.watch(periodoSeleccionadoProvider);
     final periodoLabel = periodo == 'ultimoMes' ? 'Último mes'
         : periodo == 'ultimoTrimestre' ? 'Último trimestre'
@@ -841,16 +1015,24 @@ class _UnifiedReportsScreenState extends ConsumerState<UnifiedReportsScreen> {
         children: [
           Icon(Icons.filter_alt, size: 14, color: Colors.grey.shade600),
           const SizedBox(width: 4),
-          Text('Período activo: $periodoLabel', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-          if (_searchQuery.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            Icon(Icons.search, size: 14, color: Colors.blue.shade300),
-            const SizedBox(width: 4),
-            Text('Búsqueda: "$_searchQuery"', style: TextStyle(color: Colors.blue.shade300, fontSize: 11)),
+          Expanded(
+            child: Text(
+              'Período: $periodoLabel', 
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (!isMobile) ...[
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Icon(Icons.search, size: 14, color: Colors.blue.shade300),
+              const SizedBox(width: 4),
+              Text('Búsqueda: "$_searchQuery"', style: TextStyle(color: Colors.blue.shade300, fontSize: 11)),
+            ],
+            const Spacer(),
+            Text(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
+                style: const TextStyle(color: Colors.grey, fontSize: 11)),
           ],
-          const Spacer(),
-          Text(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
-              style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ],
       ),
     );

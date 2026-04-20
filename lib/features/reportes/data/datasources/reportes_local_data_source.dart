@@ -38,6 +38,7 @@ class ReportesLocalDataSource {
     );
 
     final results = await query.get();
+    print('REPORT_DS: Cartera - Encontrados ${results.length} préstamos en rango');
     
     // Fetch all payments for these loans to calculate actual totals
     final prestamoIds = results.map((r) => r.readTable(database.prestamos).id).toList();
@@ -116,6 +117,7 @@ class ReportesLocalDataSource {
     ])..where(database.prestamos.estado.equals('MORA'));
 
     final results = await query.get();
+    print('REPORT_DS: Mora - Encontrados ${results.length} préstamos en mora');
     final now = DateTime.now();
 
     final prestamosEnMora = <PrestamoMora>[];
@@ -212,6 +214,7 @@ class ReportesLocalDataSource {
     query.orderBy([(tbl) => OrderingTerm.asc(tbl.categoria), (tbl) => OrderingTerm.asc(tbl.fecha)]);
 
     final movimientos = await query.get();
+    print('REPORT_DS: Movimientos - Encontrados ${movimientos.length} registros');
 
     String nombreCaja = 'Consolidado General';
     double saldoInicial = 0;
